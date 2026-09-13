@@ -145,3 +145,4 @@ products ─┬── product_images
 - [x] Responsive design
 - [x] Lazy loading images
 # CLOTH
+# Minh_Hai_Store
