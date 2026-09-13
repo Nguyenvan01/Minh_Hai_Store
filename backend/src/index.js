@@ -24,9 +24,17 @@ app.use(helmet({
 }));
 
 // CORS - Allow all localhost ports in development
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',').map(s => s.trim()).filter(Boolean);
+
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
-    ? ['https://yourdomain.com']
+    ? function (origin, cb) {
+        if (!origin) return cb(null, true);            // curl, Postman, health check
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        if (origin.endsWith('.vercel.app')) return cb(null, true);  // ban xem thu
+        cb(new Error('CORS: ' + origin + ' khong duoc phep'));
+      }
     : true, // Allow all origins in development
   credentials: true
 }));
@@ -86,6 +94,9 @@ async function start() {
   });
 }
 
-start();
+// Tren Vercel khong co may chu thuong truc: chi export app, khong listen.
+if (!process.env.VERCEL) {
+  start();
+}
 
 module.exports = app;

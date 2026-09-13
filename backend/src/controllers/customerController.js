@@ -70,7 +70,7 @@ exports.login = async (req, res) => {
     }
 
     const [users] = await db.query(
-      'SELECT id, name, email, password, phone, avatar, member_level, created_at FROM users WHERE email = ? AND role IN ("user", "admin", "manager", "staff")',
+      `SELECT id, name, email, password, phone, avatar, member_level, created_at FROM users WHERE email = ? AND role IN ('user', 'admin', 'manager', 'staff')`,
       [email.toLowerCase().trim()]
     )
 
@@ -448,7 +448,7 @@ exports.addToWishlist = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu productId' })
     }
 
-    const [[product]] = await db.query('SELECT id, name, price FROM products WHERE id = ? AND is_active = 1', [productId])
+    const [[product]] = await db.query('SELECT id, name, price FROM products WHERE id = ? AND is_active = TRUE', [productId])
     if (!product) {
       return res.status(404).json({ success: false, message: 'Sản phẩm không tồn tại' })
     }
@@ -531,7 +531,7 @@ exports.createAddress = async (req, res) => {
     await conn.beginTransaction()
 
     if (isDefault || count === 0) {
-      await conn.query('UPDATE addresses SET is_default = 0 WHERE user_id = ?', [userId])
+      await conn.query('UPDATE addresses SET is_default = FALSE WHERE user_id = ?', [userId])
     }
 
     const [result] = await conn.query(
@@ -569,7 +569,7 @@ exports.updateAddress = async (req, res) => {
     await conn.beginTransaction()
 
     if (isDefault) {
-      await conn.query('UPDATE addresses SET is_default = 0 WHERE user_id = ?', [userId])
+      await conn.query('UPDATE addresses SET is_default = FALSE WHERE user_id = ?', [userId])
     }
 
     const fields = []
@@ -621,7 +621,7 @@ exports.deleteAddress = async (req, res) => {
         [userId]
       )
       if (firstAddress) {
-        await conn.query('UPDATE addresses SET is_default = 1 WHERE id = ?', [firstAddress.id])
+        await conn.query('UPDATE addresses SET is_default = TRUE WHERE id = ?', [firstAddress.id])
       }
     }
 

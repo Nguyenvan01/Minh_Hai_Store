@@ -16,7 +16,7 @@ exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body
     if (!email || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email và mật khẩu' })
-    const [users] = await db.query('SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ("admin", "manager", "staff")', [email])
+    const [users] = await db.query(`SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ('admin', 'manager', 'staff')`, [email])
     if (!users.length) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' })
     const user = users[0]
     const plainValid = password === 'admin123' || password === 'manager123' || password === 'staff123'
@@ -52,7 +52,7 @@ exports.adminProfile = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ? AND role IN ("admin","manager","staff")', [req.user.id])
+    const [rows] = await db.query(`SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ? AND role IN ('admin', 'manager', 'staff')`, [req.user.id])
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' })
     res.json({ success: true, user: rows[0] })
   } catch (err) {
@@ -85,8 +85,8 @@ exports.logout = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const [[orders]] = await db.query('SELECT COUNT(*) as total, SUM(total_price) as revenue FROM orders')
-    const [[products]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = 1')
-    const [[customers]] = await db.query('SELECT COUNT(*) as total FROM users WHERE role = "user"')
+    const [[products]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = TRUE')
+    const [[customers]] = await db.query(`SELECT COUNT(*) as total FROM users WHERE role = 'user'`)
     const [[pendingOrders]] = await db.query("SELECT COUNT(*) as total FROM orders WHERE status = 'pending'")
 
     const statusBreakdown = await db.query(
@@ -110,7 +110,7 @@ exports.getDashboard = async (req, res) => {
       'SELECT name, total_sold FROM products ORDER BY total_sold DESC LIMIT 5'
     )
     const [chartData] = await db.query(
-      "SELECT DATE_FORMAT(created_at, '%m/%Y') as name, SUM(total_price) as revenue, COUNT(*) as orders FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%m/%Y') ORDER BY MIN(created_at)"
+      "SELECT TO_CHAR(created_at, 'MM/YYYY') as name, SUM(total_price) as revenue, COUNT(*) as orders FROM orders WHERE created_at >= (NOW() - INTERVAL '6 months') GROUP BY TO_CHAR(created_at, 'MM/YYYY') ORDER BY MIN(created_at)"
     )
 
     res.json({
@@ -173,7 +173,7 @@ exports.getNotifications = async (req, res) => {
     const newOrders = await safeQuery(`
       SELECT id, order_number, total_price, customer_name, created_at
       FROM orders
-      WHERE status = 'pending' AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      WHERE status = 'pending' AND created_at >= (NOW() - INTERVAL '24 hours')
       ORDER BY created_at DESC LIMIT 5
     `)
     for (const o of newOrders) {
@@ -187,9 +187,9 @@ exports.getNotifications = async (req, res) => {
 
     // 2. Đơn hàng chờ xử lý (pending > 12h)
     const pendingOld = await safeQuery(`
-      SELECT id, order_number, customer_name, created_at, TIMESTAMPDIFF(HOUR, created_at, NOW()) as hours_waiting
+      SELECT id, order_number, customer_name, created_at, FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600)::int as hours_waiting
       FROM orders
-      WHERE status = 'pending' AND created_at < DATE_SUB(NOW(), INTERVAL 12 HOUR)
+      WHERE status = 'pending' AND created_at < (NOW() - INTERVAL '12 hours')
       ORDER BY created_at ASC LIMIT 5
     `)
     for (const o of pendingOld) {
@@ -206,7 +206,7 @@ exports.getNotifications = async (req, res) => {
     const deliveredToday = await safeQuery(`
       SELECT id, order_number, customer_name, total_price, created_at
       FROM orders
-      WHERE status = 'delivered' AND DATE(delivered_at) = CURDATE()
+      WHERE status = 'delivered' AND delivered_at::date = CURRENT_DATE
       ORDER BY delivered_at DESC LIMIT 5
     `)
     for (const o of deliveredToday) {
@@ -222,7 +222,7 @@ exports.getNotifications = async (req, res) => {
     const cancelled = await safeQuery(`
       SELECT id, order_number, customer_name, cancel_reason, created_at
       FROM orders
-      WHERE status = 'cancelled' AND cancelled_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      WHERE status = 'cancelled' AND cancelled_at >= (NOW() - INTERVAL '24 hours')
       ORDER BY cancelled_at DESC LIMIT 3
     `)
     for (const o of cancelled) {
@@ -238,7 +238,7 @@ exports.getNotifications = async (req, res) => {
     const lowStock = await safeQuery(`
       SELECT id, name, stock, low_stock_threshold
       FROM products
-      WHERE is_active = 1 AND stock <= low_stock_threshold AND stock > 0
+      WHERE is_active = TRUE AND stock <= low_stock_threshold AND stock > 0
       ORDER BY stock ASC LIMIT 5
     `)
     for (const p of lowStock) {
@@ -252,7 +252,7 @@ exports.getNotifications = async (req, res) => {
 
     // 6. Sản phẩm hết hàng
     const outStock = await safeQuery(`
-      SELECT id, name, stock FROM products WHERE is_active = 1 AND stock = 0 ORDER BY updated_at DESC LIMIT 5
+      SELECT id, name, stock FROM products WHERE is_active = TRUE AND stock = 0 ORDER BY updated_at DESC LIMIT 5
     `)
     for (const p of outStock) {
       notifications.push({
@@ -283,7 +283,7 @@ exports.getNotifications = async (req, res) => {
     const returns = await safeQuery(`
       SELECT id, order_number, customer_name, created_at
       FROM orders
-      WHERE status = 'returned' AND created_at >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+      WHERE status = 'returned' AND created_at >= (NOW() - INTERVAL '48 hours')
       ORDER BY created_at DESC LIMIT 3
     `)
     for (const o of returns) {
@@ -301,7 +301,7 @@ exports.getNotifications = async (req, res) => {
       FROM product_reviews pr
       JOIN products p ON pr.product_id = p.id
       LEFT JOIN users u ON pr.user_id = u.id
-      WHERE pr.is_approved = 0
+      WHERE pr.is_approved = FALSE
       ORDER BY pr.created_at DESC LIMIT 3
     `)
     for (const r of pendingReviews) {
@@ -315,7 +315,7 @@ exports.getNotifications = async (req, res) => {
 
     // 10. Liên hệ chờ phản hồi
     const pendingContacts = await safeQuery(`
-      SELECT id, name, subject, created_at FROM contacts WHERE is_replied = 0 ORDER BY created_at DESC LIMIT 3
+      SELECT id, name, subject, created_at FROM contacts WHERE is_replied = FALSE ORDER BY created_at DESC LIMIT 3
     `)
     for (const c of pendingContacts) {
       notifications.push({
@@ -360,7 +360,7 @@ exports.getProducts = async (req, res) => {
     const offset = (page - 1) * limit
     let where = '1=1'
     let params = []
-    if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (p.name ILIKE ? OR p.sku ILIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
     if (category) { where += ' AND p.category_id = ?'; params.push(category) }
     if (brand) { where += ' AND p.brand_id = ?'; params.push(brand) }
 
@@ -371,7 +371,7 @@ exports.getProducts = async (req, res) => {
          (SELECT url FROM product_images WHERE product_id = p.id LIMIT 1) as image
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
-         WHERE p.is_active = 1
+         WHERE p.is_active = TRUE
          ORDER BY p.name ASC`
       )
       return res.json({ products: rows })
@@ -400,7 +400,7 @@ exports.getProductById = async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT p.*, c.name as category_name, b.name as brand_name,
-       (SELECT GROUP_CONCAT(url) FROM product_images WHERE product_id = p.id) as images
+       (SELECT STRING_AGG(url::text, ',') FROM product_images WHERE product_id = p.id) as images
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
        LEFT JOIN brands b ON p.brand_id = b.id
@@ -664,16 +664,16 @@ exports.getOrders = async (req, res) => {
       const conditions = [
         'o.order_number = ?',
         'o.invoice_number = ?',
-        'LOWER(o.order_number) LIKE ?',
-        'LOWER(o.customer_email) LIKE ?',
-        'LOWER(o.customer_name) LIKE ?',
-        'LOWER(o.company_name) LIKE ?',
-        'LOWER(u.name) LIKE ?',
-        'LOWER(u.email) LIKE ?',
-        `${phoneReplaced} LIKE ?`,
-        'o.customer_phone LIKE ?',
-        `${phoneUserReplaced} LIKE ?`,
-        'u.phone LIKE ?',
+        'LOWER(o.order_number) ILIKE ?',
+        'LOWER(o.customer_email) ILIKE ?',
+        'LOWER(o.customer_name) ILIKE ?',
+        'LOWER(o.company_name) ILIKE ?',
+        'LOWER(u.name) ILIKE ?',
+        'LOWER(u.email) ILIKE ?',
+        `${phoneReplaced} ILIKE ?`,
+        'o.customer_phone ILIKE ?',
+        `${phoneUserReplaced} ILIKE ?`,
+        'u.phone ILIKE ?',
       ]
       const paramsArr = [
         rawSearch, rawSearch, r, s, s, s, s, s, phoneRaw, r, phoneRaw, r,
@@ -686,11 +686,11 @@ exports.getOrders = async (req, res) => {
       params.push(...paramsArr)
     }
     if (date_from) {
-      where += ' AND DATE(o.created_at) >= ?'
+      where += ' AND o.created_at::date >= ?'
       params.push(date_from)
     }
     if (date_to) {
-      where += ' AND DATE(o.created_at) <= ?'
+      where += ' AND o.created_at::date <= ?'
       params.push(date_to)
     }
 
@@ -804,7 +804,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (note) {
       await conn.query(
-        'UPDATE orders SET admin_note = CONCAT(IFNULL(admin_note, ""), ?, "\n") WHERE id = ?',
+        `UPDATE orders SET admin_note = (COALESCE(admin_note, '') || ? || E'\n') WHERE id = ?`,
         [`[${status}] ${note}`, orderId]
       )
     }
@@ -929,9 +929,9 @@ exports.getCustomers = async (req, res) => {
     const { page = 1, search } = req.query
     const limit = 20
     const offset = (page - 1) * limit
-    let where = 'role = "user"'
+    let where = `role = 'user'`
     let params = []
-    if (search) { where += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (name ILIKE ? OR email ILIKE ? OR phone ILIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`) }
 
     const [rows] = await db.query(
       `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active, u.created_at,
@@ -991,7 +991,7 @@ exports.getEmployees = async (req, res) => {
     const offset = (page - 1) * limit
     let where = '1=1'
     let params = []
-    if (search) { where += ' AND (name LIKE ? OR email LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (name ILIKE ? OR email ILIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
 
     const [rows] = await db.query(
       `SELECT id, employee_code, full_name, email, phone, id_card, position, department, hire_date, salary, commission_rate, is_active, gender
@@ -1234,7 +1234,7 @@ exports.getSupplierOrders = async (req, res) => {
     const { search, status, supplier_id } = req.query
     let where = '1=1'
     let params = []
-    if (search) { where += ' AND (so.order_code LIKE ? OR s.name LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (so.order_code ILIKE ? OR s.name ILIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
     if (status) { where += ' AND so.status = ?'; params.push(status) }
     if (supplier_id) { where += ' AND so.supplier_id = ?'; params.push(supplier_id) }
     const [rows] = await db.query(
@@ -1259,8 +1259,8 @@ exports.getReviews = async (req, res) => {
     const limit = 20
     const offset = (page - 1) * limit
     let where = '1=1'
-    if (filter === 'pending') where = 'pr.is_approved = 0'
-    else if (filter === 'approved') where = 'pr.is_approved = 1'
+    if (filter === 'pending') where = 'pr.is_approved = FALSE'
+    else if (filter === 'approved') where = 'pr.is_approved = TRUE'
 
     const [rows] = await db.query(
       `SELECT pr.id, pr.rating, pr.content, pr.is_approved, pr.admin_reply, pr.replied_at,
@@ -1287,7 +1287,7 @@ exports.getReviews = async (req, res) => {
 
 exports.approveReview = async (req, res) => {
   try {
-    await db.query('UPDATE product_reviews SET is_approved = 1 WHERE id = ?', [req.params.id])
+    await db.query('UPDATE product_reviews SET is_approved = TRUE WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -1395,10 +1395,10 @@ exports.getReports = async (req, res) => {
   try {
     const { period = '30days', date_from, date_to } = req.query
 
-    let dateFilter = "DATE_SUB(NOW(), INTERVAL 30 DAY)"
-    if (period === '7days') dateFilter = "DATE_SUB(NOW(), INTERVAL 7 DAY)"
-    else if (period === '90days') dateFilter = "DATE_SUB(NOW(), INTERVAL 90 DAY)"
-    else if (period === '365days') dateFilter = "DATE_SUB(NOW(), INTERVAL 365 DAY)"
+    let dateFilter = "(NOW() - INTERVAL '30 days')"
+    if (period === '7days') dateFilter = "(NOW() - INTERVAL '7 days')"
+    else if (period === '90days') dateFilter = "(NOW() - INTERVAL '90 days')"
+    else if (period === '365days') dateFilter = "(NOW() - INTERVAL '365 days')"
     else if (period === 'all') dateFilter = "'1970-01-01'"
 
     const orderWhere = period === 'custom' && date_from && date_to
@@ -1458,26 +1458,26 @@ exports.getReports = async (req, res) => {
     // Daily revenue
     const [dailyRevenue] = await db.query(`
       SELECT
-        DATE(o.created_at) as date,
+        o.created_at::date as date,
         SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END) as revenue,
         SUM(CASE WHEN o.status = 'delivered' THEN o.subtotal ELSE 0 END) as net_revenue,
         COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as orders,
         SUM(CASE WHEN o.status = 'delivered' THEN 1 ELSE 0 END) as delivered_orders
       FROM orders o
       WHERE ${orderWhere}
-      GROUP BY DATE(o.created_at)
+      GROUP BY o.created_at::date
       ORDER BY date ASC
     `)
 
     // Revenue by month
     const [monthlyRevenue] = await db.query(`
       SELECT
-        DATE_FORMAT(o.created_at, '%m/%Y') as name,
+        TO_CHAR(o.created_at, 'MM/YYYY') as name,
         SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END) as revenue,
         COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as orders
       FROM orders o
       WHERE ${orderWhere}
-      GROUP BY DATE_FORMAT(o.created_at, '%m/%Y')
+      GROUP BY TO_CHAR(o.created_at, 'MM/YYYY')
       ORDER BY MIN(o.created_at)
     `)
 
@@ -1647,7 +1647,7 @@ exports.updateSettings = async (req, res) => {
   try {
     for (const [key, value] of Object.entries(req.body)) {
       await db.query(
-        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value',
         [key, value]
       )
     }
@@ -1661,7 +1661,7 @@ exports.updateSettings = async (req, res) => {
 exports.getSuppliers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT * FROM suppliers WHERE is_active = 1 ORDER BY name ASC'
+      'SELECT * FROM suppliers WHERE is_active = TRUE ORDER BY name ASC'
     )
     res.json({ suppliers: rows })
   } catch (err) {
@@ -1704,7 +1704,7 @@ exports.updateSupplier = async (req, res) => {
 
 exports.deleteSupplier = async (req, res) => {
   try {
-    await db.query('UPDATE suppliers SET is_active = 0 WHERE id = ?', [req.params.id])
+    await db.query('UPDATE suppliers SET is_active = FALSE WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -1715,7 +1715,7 @@ exports.deleteSupplier = async (req, res) => {
 exports.getWarehouses = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT * FROM warehouses WHERE is_active = 1 ORDER BY is_main DESC, name ASC'
+      'SELECT * FROM warehouses WHERE is_active = TRUE ORDER BY is_main DESC, name ASC'
     )
     res.json({ warehouses: rows })
   } catch (err) {
@@ -1729,7 +1729,7 @@ exports.createWarehouse = async (req, res) => {
     if (!name || !code) return res.status(400).json({ success: false, message: 'Tên và mã kho là bắt buộc' })
     const [existing] = await db.query('SELECT id FROM warehouses WHERE code = ?', [code])
     if (existing.length) return res.status(400).json({ success: false, message: 'Mã kho đã tồn tại' })
-    if (is_main) await db.query('UPDATE warehouses SET is_main = 0')
+    if (is_main) await db.query('UPDATE warehouses SET is_main = FALSE')
     const [result] = await db.query(
       'INSERT INTO warehouses (name, code, address, phone, is_main) VALUES (?, ?, ?, ?, ?)',
       [name, code, address || null, phone || null, is_main ? 1 : 0]
@@ -1744,7 +1744,7 @@ exports.createWarehouse = async (req, res) => {
 exports.updateWarehouse = async (req, res) => {
   try {
     const { name, address, phone, is_main, is_active } = req.body
-    if (is_main) await db.query('UPDATE warehouses SET is_main = 0')
+    if (is_main) await db.query('UPDATE warehouses SET is_main = FALSE')
     await db.query(
       'UPDATE warehouses SET name=?, address=?, phone=?, is_main=?, is_active=? WHERE id=?',
       [name, address||null, phone||null, is_main?1:0, is_active!==undefined ? (is_active?1:0) : 1, req.params.id]
@@ -1759,7 +1759,7 @@ exports.updateWarehouse = async (req, res) => {
 
 exports.deleteWarehouse = async (req, res) => {
   try {
-    await db.query('UPDATE warehouses SET is_active = 0 WHERE id = ?', [req.params.id])
+    await db.query('UPDATE warehouses SET is_active = FALSE WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ success: false, message: err.message })
@@ -1951,7 +1951,7 @@ exports.receiveSupplierOrder = async (req, res) => {
 
     await db.query(
       `UPDATE supplier_orders SET paid_amount=?,
-       received_date=CASE WHEN ?='received' THEN CURDATE() ELSE received_date END, status=? WHERE id=?`,
+       received_date=CASE WHEN ?='received' THEN CURRENT_DATE ELSE received_date END, status=? WHERE id=?`,
       [received_total || 0, newOrderStatus, newOrderStatus, orderId]
     )
 

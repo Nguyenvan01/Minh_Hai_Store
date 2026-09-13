@@ -369,7 +369,7 @@ module.exports = {
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
         WHERE p.is_active = TRUE
-          AND (p.name LIKE ? OR p.short_description LIKE ? OR p.description LIKE ? OR b.name LIKE ?)
+          AND (p.name ILIKE ? OR p.short_description ILIKE ? OR p.description ILIKE ? OR b.name ILIKE ?)
         ORDER BY p.is_featured DESC, p.view_count DESC
         LIMIT 20
       `, [searchTerm, searchTerm, searchTerm, searchTerm]);

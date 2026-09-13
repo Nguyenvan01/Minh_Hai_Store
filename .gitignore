@@ -1,12 +1,21 @@
+# Phu thuoc
 node_modules/
+
+# Bien moi truong - KHONG BAO GIO commit
 .env
 .env.local
 .env.*.local
 env
+
+# Ket qua build
 dist/
 build/
 .vercel
-.DS_Store
+
+# Anh nguoi dung tai len (da chuyen sang Supabase Storage)
 backend/uploads/
+
+# He dieu hanh / editor
+.DS_Store
 *.log
 __pycache__/

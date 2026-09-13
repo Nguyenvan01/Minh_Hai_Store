@@ -139,8 +139,8 @@ module.exports = {
           pr.valid_until as sale_end_time
         FROM products p
         INNER JOIN promotions pr ON (
-          JSON_CONTAINS(COALESCE(pr.applicable_products, '[]'), CAST(p.id AS CHAR))
-          OR JSON_CONTAINS(COALESCE(pr.applicable_categories, '[]'), CAST(p.category_id AS CHAR))
+          COALESCE(pr.applicable_products, '[]')::jsonb @> to_jsonb(p.id)
+          OR COALESCE(pr.applicable_categories, '[]')::jsonb @> to_jsonb(p.category_id)
         )
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id

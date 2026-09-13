@@ -3,24 +3,54 @@ const multer = require('multer')
 const path = require('path')
 const router = express.Router()
 
-// Multer config for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, '../../uploads')),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1E9)
-    cb(null, unique + path.extname(file.originalname))
+// Anh duoc giu trong bo nho roi day len Supabase Storage.
+// Khong ghi ra o dia vi tren Vercel o dia chi doc va moi luot goi la mot may khac.
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.originalname)) cb(null, true)
+    else cb(new Error('Chỉ chấp nhận file ảnh'))
   }
 })
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
-  if (/\.(jpg|jpeg|png|gif|webp)$/i.test(file.originalname)) cb(null, true)
-  else cb(new Error('Chỉ chấp nhận file ảnh'))
-} })
+
+const SUPABASE_BUCKET = process.env.SUPABASE_BUCKET || 'products'
+
+let supabase = null
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+  const { createClient } = require('@supabase/supabase-js')
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+}
 
 // Upload image
-router.post('/upload', upload.single('image'), (req, res) => {
+router.post('/upload', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'Không có file' })
-  const url = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`
-  res.json({ success: true, url })
+
+  const name = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(req.file.originalname)}`
+
+  // Chua cau hinh Supabase (chay o may ca nhan) -> ghi tam ra thu muc uploads
+  if (!supabase) {
+    const fs = require('fs')
+    const dir = path.join(__dirname, '../../uploads')
+    fs.mkdirSync(dir, { recursive: true })
+    fs.writeFileSync(path.join(dir, name), req.file.buffer)
+    return res.json({
+      success: true,
+      url: `${req.protocol}://${req.get('host')}/uploads/${name}`
+    })
+  }
+
+  const { error } = await supabase.storage
+    .from(SUPABASE_BUCKET)
+    .upload(name, req.file.buffer, { contentType: req.file.mimetype, upsert: false })
+
+  if (error) {
+    console.error('[upload] Supabase Storage:', error.message)
+    return res.status(500).json({ success: false, message: error.message })
+  }
+
+  const { data } = supabase.storage.from(SUPABASE_BUCKET).getPublicUrl(name)
+  res.json({ success: true, url: data.publicUrl })
 })
 
 // Login - no auth required
@@ -40,12 +70,12 @@ router.get('/notifications', require('../controllers/adminController').getNotifi
 router.get('/products', require('../controllers/adminController').getProducts)
 router.get('/sizes', async (req, res) => {
   const db = require('../config/database')
-  const [rows] = await db.query('SELECT * FROM sizes WHERE is_active = 1 ORDER BY sort_order ASC')
+  const [rows] = await db.query('SELECT * FROM sizes WHERE is_active = TRUE ORDER BY sort_order ASC')
   res.json({ sizes: rows })
 })
 router.get('/colors', async (req, res) => {
   const db = require('../config/database')
-  const [rows] = await db.query('SELECT * FROM colors WHERE is_active = 1 ORDER BY sort_order ASC')
+  const [rows] = await db.query('SELECT * FROM colors WHERE is_active = TRUE ORDER BY sort_order ASC')
   res.json({ colors: rows })
 })
 router.get('/products/:id', require('../controllers/adminController').getProductById)
