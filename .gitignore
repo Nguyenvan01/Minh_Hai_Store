@@ -19,3 +19,7 @@ backend/uploads/
 .DS_Store
 *.log
 __pycache__/
+
+# File env de import vao Vercel - chua mat khau, KHONG commit
+*.env
+vercel-*.env
