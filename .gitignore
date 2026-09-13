@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+env
+dist/
+build/
+.vercel
+.DS_Store
+backend/uploads/
+*.log
+__pycache__/
