@@ -3,195 +3,197 @@ import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import Newsletter from '../components/Newsletter'
+import ProductFilters from '../components/ProductFilters'
 import { productAPI } from '../services/api'
 import { formatPrice } from '../utils/formatPrice'
-import { useCart } from '../contexts/CartContext'
 import { useToast } from '../contexts/ToastContext'
 
 const StarRating = ({ rating = 0 }) => {
   return (
-    <div className="flex text-amber-500">
-      {[...Array(5)].map((_, i) => (
-        <span
-          key={i}
-          className="material-symbols-outlined text-sm"
-          style={{
-            fontVariationSettings: i < Math.floor(rating) ? "'FILL' 1" : "'FILL' 0"
-          }}
-        >
-          star
-        </span>
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={i <= Math.floor(rating) ? '#f59e0b' : 'none'} stroke="#f59e0b" strokeWidth="1.5">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
       ))}
     </div>
   )
 }
 
 const KidsPage = () => {
-  const { addItem } = useCart()
   const toast = useToast()
   const navigate = useNavigate()
-  
+
   const [products, setProducts] = useState([])
-  const [categories, setCategories] = useState([
-    { id: 'all', name: 'Tất cả', count: 0 },
-    { id: 'ao-tre-em', name: 'Áo Trẻ Em', count: 0 },
-    { id: 'quan-tre-em', name: 'Quần Trẻ Em', count: 0 },
-    { id: 'vay-tre-em', name: 'Váy Trẻ Em', count: 0 },
-    { id: 'dam-tre-em', name: 'Đầm Trẻ Em', count: 0 },
-    { id: 'bo-do-tre-em', name: 'Bộ Đồ Trẻ Em', count: 0 }
-  ])
+  const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
-  
-  // Filters
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [priceRange, setPriceRange] = useState([0, 2000000])
-  const [sortBy, setSortBy] = useState('newest')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  
-  const productsPerPage = 6
+  const [totalProducts, setTotalProducts] = useState(0)
 
-  // Fetch categories cho trẻ em
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedSizes, setSelectedSizes] = useState([])
+  const [selectedColors, setSelectedColors] = useState([])
+  const [priceRange, setPriceRange] = useState([0, 2000000])
+  const [selectedDiscounts, setSelectedDiscounts] = useState([])
+  const [sortBy, setSortBy] = useState('newest')
+
+  const productsPerPage = 8
+
+  const getDemoProducts = () => [
+    {
+      id: 32, name: 'Áo Thun Bé Trai CARS', slug: 'ao-thun-tre-em-be-trai-cars',
+      price: 159000, compare_price: 190000,
+      image_url: 'https://images.unsplash.com/photo-1617609180892-e5f3b73d3dc4?w=600',
+      avg_rating: 5, review_count: 89, is_on_sale: true, category_slug: 'ao-tre-em'
+    },
+    {
+      id: 38, name: 'Váy Xếp Ly Trẻ Em Hoa', slug: 'vay-xep-ly-tre-em',
+      price: 229000,
+      image_url: 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=600',
+      avg_rating: 4, review_count: 156, category_slug: 'vay-tre-em'
+    },
+    {
+      id: 42, name: 'Bộ Đồ Thể Thao Trẻ Em', slug: 'bo-do-the-thao-tre-em',
+      price: 299000,
+      image_url: 'https://images.unsplash.com/photo-1445796886651-d31a2c15f3c9?w=600',
+      avg_rating: 5, review_count: 67, category_slug: 'bo-do-tre-em'
+    },
+    {
+      id: 35, name: 'Quần Jean Trẻ Em Bé Gái', slug: 'quan-jeans-tre-em-be-gai',
+      price: 249000,
+      image_url: 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=600',
+      avg_rating: 4, review_count: 234, category_slug: 'quan-tre-em'
+    },
+    {
+      id: 39, name: 'Đầm Xòe Trẻ Em Hồng', slug: 'dam-xoe-tre-em',
+      price: 299000, compare_price: 350000,
+      image_url: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600',
+      avg_rating: 5, review_count: 45, is_new: true, is_on_sale: true, category_slug: 'dam-tre-em'
+    },
+    {
+      id: 33, name: 'Áo Thun Bé Gái Hoa', slug: 'ao-thun-tre-em-be-gai-hoa',
+      price: 149000, compare_price: 180000,
+      image_url: 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=600',
+      avg_rating: 4, review_count: 178, is_on_sale: true, category_slug: 'ao-tre-em'
+    },
+    {
+      id: 40, name: 'Quần Soóc Trẻ Em', slug: 'quan-sooc-tre-em',
+      price: 179000,
+      image_url: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?w=600',
+      avg_rating: 5, review_count: 98, category_slug: 'quan-tre-em'
+    },
+    {
+      id: 41, name: 'Đầm Công Chúa Trẻ Em', slug: 'dam-cong-chua-tre-em',
+      price: 399000, compare_price: 499000,
+      image_url: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600',
+      avg_rating: 4, review_count: 67, is_on_sale: true, category_slug: 'dam-tre-em'
+    }
+  ]
+
+  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const response = await productAPI.getKidsCategories()
-        if (response.success && response.data) {
+        if (response.success && response.data?.length > 0) {
           setCategories(response.data)
+        } else {
+          setCategories([
+            { id: 'all', name: 'Tất cả', count: 0 },
+            { id: 'ao-tre-em', name: 'Áo Trẻ Em', count: 0 },
+            { id: 'quan-tre-em', name: 'Quần Trẻ Em', count: 0 },
+            { id: 'vay-tre-em', name: 'Váy Trẻ Em', count: 0 },
+            { id: 'dam-tre-em', name: 'Đầm Trẻ Em', count: 0 },
+            { id: 'bo-do-tre-em', name: 'Bộ Đồ Trẻ Em', count: 0 }
+          ])
         }
       } catch (error) {
         console.error('Error fetching categories:', error)
+        setCategories([
+          { id: 'all', name: 'Tất cả', count: 0 },
+          { id: 'ao-tre-em', name: 'Áo Trẻ Em', count: 0 },
+          { id: 'quan-tre-em', name: 'Quần Trẻ Em', count: 0 },
+          { id: 'vay-tre-em', name: 'Váy Trẻ Em', count: 0 },
+          { id: 'dam-tre-em', name: 'Đầm Trẻ Em', count: 0 },
+          { id: 'bo-do-tre-em', name: 'Bộ Đồ Trẻ Em', count: 0 }
+        ])
       }
     }
     fetchCategories()
   }, [])
-
-  // Demo products - chỉ sản phẩm trẻ em với category_slug đúng
-  const getDemoProducts = () => [
-    {
-      id: 32,
-      name: 'Áo Thun Bé Trai',
-      slug: 'ao-thun-tre-em-be-trai-cars',
-      price: 159000,
-      compare_price: 190000,
-      image: 'https://images.unsplash.com/photo-1617609180892-e5f3b73d3dc4?w=600',
-      avg_rating: 5,
-      review_count: 89,
-      is_on_sale: true,
-      category_slug: 'ao-tre-em'
-    },
-    {
-      id: 38,
-      name: 'Váy Xếp Ly Trẻ Em',
-      slug: 'vay-xep-ly-tre-em',
-      price: 229000,
-      image: 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=600',
-      avg_rating: 4,
-      review_count: 156,
-      category_slug: 'vay-tre-em'
-    },
-    {
-      id: 42,
-      name: 'Bộ Đồ Thể Thao',
-      slug: 'bo-do-the-thao-tre-em',
-      price: 299000,
-      image: 'https://images.unsplash.com/photo-1445796886651-d31a2c15f3c9?w=600',
-      avg_rating: 5,
-      review_count: 67,
-      category_slug: 'bo-do-tre-em'
-    },
-    {
-      id: 35,
-      name: 'Quần Jean Trẻ Em',
-      slug: 'quan-jeans-tre-em-be-gai',
-      price: 249000,
-      image: 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=600',
-      avg_rating: 4,
-      review_count: 234,
-      category_slug: 'quan-tre-em'
-    },
-    {
-      id: 39,
-      name: 'Đầm Xòe Trẻ Em',
-      slug: 'dam-xoe-tre-em',
-      price: 299000,
-      image: 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=600',
-      avg_rating: 5,
-      review_count: 45,
-      is_new: true,
-      category_slug: 'dam-tre-em'
-    },
-    {
-      id: 33,
-      name: 'Áo Thun Bé Gái Hoa',
-      slug: 'ao-thun-tre-em-be-gai-hoa',
-      price: 149000,
-      compare_price: 180000,
-      image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?w=600',
-      avg_rating: 4,
-      review_count: 178,
-      is_on_sale: true,
-      category_slug: 'ao-tre-em'
-    }
-  ]
 
   // Fetch products
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true)
       try {
-        // Kids products - luôn filter by age_group = 'kids'
+        const sortMap = {
+          newest: 'created_at',
+          'price-asc': 'price',
+          'price-desc': 'price',
+          'best-seller': 'total_sold'
+        }
         const params = {
           page,
           limit: productsPerPage,
-          sort: sortBy === 'newest' ? 'created_at' : sortBy,
-          age_group: 'kids'
+          sort: sortMap[sortBy] || 'created_at',
+          order: sortBy === 'price-asc' ? 'asc' : 'desc'
         }
 
         if (selectedCategory !== 'all') {
           params.category = selectedCategory
         }
+        if (priceRange[0] > 0) {
+          params.min_price = priceRange[0]
+        }
+        if (priceRange[1] < 5000000) {
+          params.max_price = priceRange[1]
+        }
+        if (selectedSizes.length > 0) {
+          params.size = selectedSizes.join(',')
+        }
+        if (selectedColors.length > 0) {
+          params.color = selectedColors.join(',')
+        }
+        if (selectedDiscounts.length > 0) {
+          params.discount = selectedDiscounts.join(',')
+        }
 
-        const response = await productAPI.getProducts(params)
+        const response = await productAPI.getKidsProducts(params)
 
-        // Backend trả về { success: true, data: { products: [...], pagination: {...} } }
-        // Axios interceptor trả về response.data nên response = { success: true, data: {...} }
-        if (response.success && response.data?.products?.length > 0) {
-          // API không filter đúng theo age_group nên filter phía client
-          const kidsProducts = response.data.products.filter(p => 
-            p.age_group === 'kids' || 
-            p.category_slug?.includes('tre-em') ||
-            p.category_slug === 'ao-tre-em' ||
-            p.category_slug === 'quan-tre-em' ||
-            p.category_slug === 'vay-tre-em' ||
-            p.category_slug === 'dam-tre-em' ||
-            p.category_slug === 'bo-do-tre-em'
-          )
-          if (kidsProducts.length > 0) {
-            setProducts(kidsProducts)
-            setTotalPages(2)
-          } else {
-            setProducts(getDemoProducts())
-            setTotalPages(2)
-          }
+        if (response.success && response.data) {
+          setProducts(response.data.products || [])
+          setTotalPages(response.data.pagination?.total_pages || 1)
+          setTotalProducts(response.data.pagination?.total || 0)
         } else {
-          // Fallback: hiển thị demo products (chỉ trẻ em)
-          setProducts(getDemoProducts())
-          setTotalPages(2)
+          setProducts([])
+          setTotalPages(1)
+          setTotalProducts(0)
         }
       } catch (error) {
-        console.error('Error:', error)
-        setProducts(getDemoProducts())
-        setTotalPages(3)
+        console.error('Error fetching products:', error)
+        setProducts([])
+        setTotalPages(1)
+        setTotalProducts(0)
       } finally {
         setLoading(false)
       }
     }
     fetchProducts()
-  }, [page, sortBy, selectedCategory])
+  }, [page, sortBy, selectedCategory, selectedSizes, selectedColors, priceRange, selectedDiscounts])
 
   const toggleSize = (size) => {
-    // Kids size filter
+    setSelectedSizes(prev =>
+      prev.includes(size) ? prev.filter(s => s !== size) : [...prev, size]
+    )
+    setPage(1)
+  }
+
+  const toggleColor = (colorId) => {
+    setSelectedColors(prev =>
+      prev.includes(colorId) ? prev.filter(c => c !== colorId) : [...prev, colorId]
+    )
     setPage(1)
   }
 
@@ -203,8 +205,8 @@ const KidsPage = () => {
   const handleAddToCart = (e, product) => {
     e.preventDefault()
     e.stopPropagation()
-    addItem(product, 1, null, null)
-    toast.success(`Đã thêm "${product.name}" vào giỏ hàng!`)
+    toast.info('Vui lòng chọn size/màu trước khi thêm vào giỏ hàng.')
+    navigate(`/product/${product.slug}`)
   }
 
   const handleQuickView = (e, product) => {
@@ -213,276 +215,202 @@ const KidsPage = () => {
     navigate(`/product/${product.slug}`)
   }
 
-  const totalProducts = products.length > 0 ? products.length * totalPages : 20
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-white">
       <Header cartCount={0} />
-      
-      <main className="pt-28 max-w-screen-2xl mx-auto px-12 pb-12">
+
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-6 pb-12">
         {/* Breadcrumbs & Header */}
-        <div className="mb-12">
-          <nav className="flex items-center gap-2 text-on-surface-variant text-sm mb-4 uppercase tracking-widest font-label">
-            <Link className="hover:text-primary transition-colors" to="/">Trang chủ</Link>
+        <div className="mb-4">
+          <nav className="flex items-center gap-2 text-[#454652] text-sm mb-4 uppercase tracking-widest font-label">
+            <Link className="hover:text-[#DA291C] transition-colors" to="/">Trang chủ</Link>
             <span className="material-symbols-outlined text-xs">chevron_right</span>
-            <span className="text-primary font-medium">Trẻ em</span>
+            <span className="text-[#131b2e] font-medium">Trẻ em</span>
           </nav>
-          <h1 className="text-4xl font-bold tracking-tighter text-on-surface headline">TRẺ EM</h1>
-          <p className="text-base text-on-surface-variant mt-3 max-w-2xl">
+          <h1 className="text-4xl font-bold tracking-tighter text-[#131b2e] headline">TRẺ EM</h1>
+          <p className="text-base text-[#454652] mt-3 max-w-2xl">
             Thời trang đáng yêu cho bé yêu với chất liệu mềm mại, thoáng khí và thiết kế vui nhộn. Giúp bé tự tin thể hiện phong cách riêng từ những năm tháng đầu đời.
           </p>
         </div>
 
-        <div className="flex gap-16">
+        <div className="flex gap-6 lg:gap-12">
           {/* Sidebar Filter */}
-          <aside className="w-72 flex-shrink-0 hidden lg:block">
-            <div className="space-y-12 sticky top-32">
-              {/* Categories - Chỉ hiển thị danh mục trẻ em */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Danh mục</h3>
-                <ul className="space-y-1 text-on-surface-variant divide-y divide-outline-variant">
-                  {/* Tất cả - lấy tổng số từ tất cả categories */}
-                  <li>
-                    <button
-                      onClick={() => {
-                        setSelectedCategory('all')
-                        setPage(1)
-                      }}
-                      className={`flex justify-between items-center w-full text-left py-2 px-3 -my-px transition-all ${
-                        selectedCategory === 'all' 
-                          ? 'text-primary font-medium bg-primary/10' 
-                          : 'hover:text-primary hover:bg-surface-container'
-                      }`}
-                    >
-                      <span>Tất cả</span>
-                      <span className="text-xs opacity-50">
-                        {categories.find(c => c.id === 'all')?.count || 0}
-                      </span>
-                    </button>
-                  </li>
-                  {/* Danh mục trẻ em - lấy count từ categories state */}
-                  {['ao-tre-em', 'quan-tre-em', 'vay-tre-em', 'dam-tre-em', 'bo-do-tre-em'].map((slug) => {
-                    const catNames = {
-                      'ao-tre-em': 'Áo Trẻ Em',
-                      'quan-tre-em': 'Quần Trẻ Em', 
-                      'vay-tre-em': 'Váy Trẻ Em',
-                      'dam-tre-em': 'Đầm Trẻ Em',
-                      'bo-do-tre-em': 'Bộ Đồ Trẻ Em'
-                    }
-                    const catCount = categories.find(c => c.id === slug)?.count || 0
-                    return (
-                      <li key={slug}>
-                        <button
-                          onClick={() => {
-                            setSelectedCategory(slug)
-                            setPage(1)
-                          }}
-                          className={`flex justify-between items-center w-full text-left py-2 px-3 -my-px transition-all ${
-                            selectedCategory === slug 
-                              ? 'text-primary font-medium bg-primary/10' 
-                              : 'hover:text-primary hover:bg-surface-container'
-                          }`}
-                        >
-                          <span>{catNames[slug]}</span>
-                          {catCount > 0 && <span className="text-xs opacity-50">{catCount}</span>}
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-
-              {/* Size Filter */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Kích thước</h3>
-                <div className="flex flex-wrap gap-2">
-                  {['3-4T', '5-6T', '7-8T', '8-9T'].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => toggleSize(size)}
-                      className="w-10 h-10 border border-outline rounded-md text-xs font-medium hover:border-primary hover:text-primary transition-colors"
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Khoảng giá</h3>
-                <div className="px-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="2000000"
-                    step="50000"
-                    value={priceRange[1]}
-                    onChange={(e) => {
-                      setPriceRange([priceRange[0], Number(e.target.value)])
-                      setPage(1)
-                    }}
-                    className="w-full h-1 bg-surface-container rounded-full appearance-none cursor-pointer accent-primary mb-4"
-                  />
-                  <div className="flex justify-between text-xs font-medium text-on-surface-variant font-label">
-                    <span>{formatPrice(priceRange[0])}</span>
-                    <span>{formatPrice(priceRange[1])}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Kids Banner */}
-              <div className="bg-secondary-container text-on-secondary-container p-6 rounded-xl">
-                <span className="material-symbols-outlined text-4xl mb-4 block">child_care</span>
-                <h3 className="text-sm font-bold uppercase tracking-widest mb-2 headline">Ưu đãi trẻ em</h3>
-                <p className="text-xs opacity-80">Giảm 15% cho đơn hàng đầu tiên của bé</p>
-              </div>
-            </div>
-          </aside>
+          <ProductFilters
+            categoryList={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={(id) => { setSelectedCategory(id); setPage(1) }}
+            selectedSizes={selectedSizes}
+            onSizeChange={(sizes) => { setSelectedSizes(sizes); setPage(1) }}
+            selectedColors={selectedColors}
+            onColorChange={(colors) => { setSelectedColors(colors); setPage(1) }}
+            priceRange={priceRange}
+            onPriceChange={(range) => { setPriceRange(range); setPage(1) }}
+            selectedDiscounts={selectedDiscounts}
+            onDiscountChange={(discounts) => { setSelectedDiscounts(discounts); setPage(1) }}
+          />
 
           {/* Product Display Area */}
-          <section className="flex-grow">
+          <section className="flex-grow min-w-0">
             {/* Sorting & Top Bar */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-              <p className="text-sm text-on-surface-variant font-label">
-                Hiển thị {products.length} sản phẩm
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+              <p className="text-sm text-[#74869B]">
+                Hiển thị {products.length} trên {totalProducts} sản phẩm
               </p>
               <div className="flex items-center gap-4">
-                <span className="text-xs uppercase tracking-widest font-bold text-on-surface-variant">Sắp xếp theo:</span>
+                <span className="text-xs font-bold text-[#74869B] uppercase tracking-wider">Sắp xếp:</span>
                 <div className="relative">
                   <select
                     value={sortBy}
                     onChange={handleSortChange}
-                    className="appearance-none bg-transparent border-b border-outline px-2 py-1 pr-8 text-sm font-medium focus:outline-none cursor-pointer"
+                    className="appearance-none bg-transparent border-b border-[#ADBCCD] px-2 py-1 pr-7 text-sm font-medium focus:outline-none focus:border-[#333F48] cursor-pointer transition-colors duration-200"
                   >
                     <option value="newest">Mới nhất</option>
-                    <option value="price_asc">Giá: Thấp đến Cao</option>
-                    <option value="price_desc">Giá: Cao đến Thấp</option>
-                    <option value="name">Tên A-Z</option>
+                    <option value="price-asc">Giá: Thấp → Cao</option>
+                    <option value="price-desc">Giá: Cao → Thấp</option>
+                    <option value="best-seller">Bán chạy</option>
                   </select>
-                  <span className="absolute right-0 top-1/2 -translate-y-1/2 material-symbols-outlined text-sm pointer-events-none">expand_more</span>
+                  <svg className="absolute right-0 top-1/2 -translate-y-1/2 text-[#74869B]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m6 9 6 6 6-6"/>
+                  </svg>
                 </div>
               </div>
             </div>
 
             {/* Product Grid */}
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    <div className="bg-surface-container rounded-xl aspect-[3/4] mb-4"></div>
-                    <div className="h-4 bg-surface-container rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-surface-container rounded w-1/2"></div>
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i}>
+                    <div className="aspect-[3/4] bg-[#f0f0f0] rounded-xl mb-3 skeleton-shimmer" />
+                    <div className="h-4 bg-[#f0f0f0] rounded mb-2 w-3/4 skeleton-shimmer" />
+                    <div className="h-4 bg-[#f0f0f0] rounded w-1/2 skeleton-shimmer" />
                   </div>
                 ))}
               </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-20">
+                <svg className="mx-auto mb-4 text-[#ADBCCD]" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/>
+                </svg>
+                <p className="text-[#74869B]">Không tìm thấy sản phẩm nào.</p>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {products.map((product) => (
-                  <div 
-                    key={product.id}
-                    className="group cursor-pointer"
-                    onClick={() => navigate(`/product/${product.slug}`)}
-                  >
-                    <div className="relative rounded-xl overflow-hidden bg-surface-container aspect-[3/4] mb-4">
-                      <img 
-                        src={product.image || product.image_url || 'https://via.placeholder.com/400x533'}
-                        alt={product.name}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 group-hover:brightness-50"
-                      />
-                      
-                      {/* Badges */}
-                      <div className="absolute top-3 left-3 flex flex-col gap-2">
+              <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 lg:gap-6">
+                {products.map((product) => {
+                  const discountPercent = product.compare_price && product.compare_price > product.price
+                    ? Math.round((1 - product.price / product.compare_price) * 100)
+                    : 0
+
+                  return (
+                    <div key={product.id} className="product-card group">
+                      {/* Image */}
+                      <Link
+                        to={`/product/${product.slug}`}
+                        className="relative aspect-[3/4] overflow-hidden bg-[#F4F6F9] rounded-xl mb-3 block"
+                      >
+                        <img
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 group-hover:brightness-50 transition-all duration-500"
+                          src={product.image_url || product.image}
+                          loading="lazy"
+                        />
+
+                        {/* Badges */}
+                        {discountPercent > 0 && (
+                          <span className="absolute top-2 left-2 bg-[#DA291C] text-white text-[10px] font-bold px-2 py-0.5 animate-badge-pop">
+                            -{discountPercent}%
+                          </span>
+                        )}
                         {product.is_new && (
-                          <span className="bg-secondary text-on-secondary text-[10px] font-bold uppercase px-2 py-1 rounded">
+                          <span className="absolute top-2 left-2 bg-[#333F48] text-white text-[10px] font-bold px-2 py-0.5">
                             Mới
                           </span>
                         )}
-                        {product.is_on_sale && (
-                          <span className="bg-red-600 text-white text-[10px] font-bold uppercase px-2 py-1 rounded">
-                            -{Math.round((1 - product.price / product.compare_price) * 100)}%
-                          </span>
-                        )}
-                      </div>
 
-                      {/* Quick Actions */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={(e) => handleQuickView(e, product)}
-                            className="flex-1 bg-white text-on-surface py-2 rounded-lg text-xs font-bold uppercase hover:bg-[#4F46E5] hover:text-white transition-colors"
-                          >
-                            Xem nhanh
-                          </button>
-                          <button 
+                        {/* Action Buttons */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 flex flex-col justify-end p-4 transition-opacity duration-300 group-hover:opacity-100">
+                          <button
                             onClick={(e) => handleAddToCart(e, product)}
-                            className="w-10 h-10 bg-white rounded-lg flex items-center justify-center hover:bg-[#4F46E5] hover:text-white transition-colors"
+                            className="w-full bg-white text-[#333F48] py-3 text-xs font-bold uppercase tracking-widest hover:bg-[#DA291C] hover:text-white transition-colors duration-200 mb-2"
                           >
-                            <span className="material-symbols-outlined text-lg">shopping_bag</span>
+                            Thêm vào giỏ
                           </button>
+                          <button
+                            onClick={(e) => handleQuickView(e, product)}
+                            className="w-full bg-white/80 backdrop-blur-sm text-[#333F48] py-3 text-xs font-bold uppercase tracking-widest hover:bg-white transition-colors duration-200"
+                          >
+                            Xem chi tiết
+                          </button>
+                        </div>
+
+                        {/* Favorite */}
+                        <button className="absolute top-2 right-2 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-[#333F48] hover:text-[#DA291C] transition-colors duration-200 opacity-0 group-hover:opacity-100">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                          </svg>
+                        </button>
+                      </Link>
+
+                      {/* Product Info */}
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-xs lg:text-sm font-medium text-[#333F48] mb-1 line-clamp-2 leading-snug group-hover:text-[#DA291C] transition-colors duration-200">
+                            {product.name}
+                          </h3>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold text-[#DA291C]">
+                              {formatPrice(product.price)}
+                            </span>
+                            {product.compare_price && product.compare_price > product.price && (
+                              <span className="text-xs text-[#74869B] line-through">
+                                {formatPrice(product.compare_price)}
+                              </span>
+                            )}
+                          </div>
+                          <StarRating rating={product.avg_rating || 0} />
                         </div>
                       </div>
                     </div>
-
-                    {/* Product Info */}
-                    <div className="space-y-1">
-                      <p className="text-[10px] uppercase tracking-widest text-on-surface-variant font-label">
-                        {product.brand_name || product.category_name || 'Trẻ em'}
-                      </p>
-                      <h3 className="text-sm font-medium text-on-surface line-clamp-2 hover:text-primary transition-colors">
-                        {product.name}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <StarRating rating={product.avg_rating || 0} />
-                        <span className="text-xs text-on-surface-variant">({product.review_count || 0})</span>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <span className="text-sm font-bold text-red-600">
-                          {formatPrice(product.price)}
-                        </span>
-                        {product.compare_price > product.price && (
-                          <span className="text-xs text-on-surface-variant line-through">
-                            {formatPrice(product.compare_price)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
             {/* Pagination */}
             {totalPages > 1 && (
               <div className="mt-16 flex justify-center gap-2">
-                <button 
+                <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="w-10 h-10 rounded-full border border-outline flex items-center justify-center hover:border-primary hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-10 h-10 rounded-full border border-[#E5EAF0] flex items-center justify-center hover:border-[#333F48] hover:text-[#333F48] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  <span className="material-symbols-outlined text-sm">chevron_left</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m15 18-6-6 6-6"/>
+                  </svg>
                 </button>
-                
+
                 {[...Array(totalPages)].map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setPage(i + 1)}
-                    className={`w-10 h-10 rounded-full font-medium transition-colors ${
-                      page === i + 1 
-                        ? 'bg-primary text-white' 
-                        : 'border border-outline hover:border-primary hover:text-primary'
+                    className={`w-10 h-10 rounded-full font-medium transition-all duration-200 ${
+                      page === i + 1
+                        ? 'bg-[#333F48] text-white'
+                        : 'border border-[#E5EAF0] hover:border-[#333F48] hover:text-[#333F48]'
                     }`}
                   >
                     {i + 1}
                   </button>
                 ))}
-                
-                <button 
+
+                <button
                   onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
-                  className="w-10 h-10 rounded-full border border-outline flex items-center justify-center hover:border-primary hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-10 h-10 rounded-full border border-[#E5EAF0] flex items-center justify-center hover:border-[#333F48] hover:text-[#333F48] disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200"
                 >
-                  <span className="material-symbols-outlined text-sm">chevron_right</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m9 18 6-6-6-6"/>
+                  </svg>
                 </button>
               </div>
             )}

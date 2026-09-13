@@ -10,6 +10,15 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
+const getArticleImage = (article) => (
+  article?.thumbnail
+  || article?.image_url
+  || article?.thumbnail_url
+  || article?.cover_image
+  || article?.image
+  || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800'
+)
+
 const BlogPage = () => {
   const [articles, setArticles] = useState([])
   const [loading, setLoading] = useState(true)
@@ -38,7 +47,7 @@ const BlogPage = () => {
             <span className="material-symbols-outlined text-6xl mb-4 text-primary">article</span>
             <h1 className="text-5xl font-bold mb-4">Blog Thời Trang</h1>
             <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-              Cập nhật xu hướng, chia sẻ phong cách và câu chuyện từ CLOTH
+              Cập nhật xu hướng, chia sẻ phong cách và câu chuyện từ Minh Hải
             </p>
           </div>
         </section>
@@ -86,7 +95,7 @@ const BlogPage = () => {
                   <img
                     alt={article.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    src={article.thumbnail}
+                    src={getArticleImage(article)}
                     loading="lazy"
                   />
                 </div>
@@ -126,7 +135,7 @@ const BlogPage = () => {
         <section className="py-16 bg-slate-900 text-white">
           <div className="max-w-screen-2xl mx-auto px-8 text-center">
             <h2 className="text-3xl font-bold mb-4">Đăng ký nhận tin mới nhất</h2>
-            <p className="text-slate-400 mb-8">Theo dõi blog CLOTH để cập nhật xu hướng và ưu đãi hấp dẫn</p>
+            <p className="text-slate-400 mb-8">Theo dõi blog Minh Hải để cập nhật xu hướng và ưu đãi hấp dẫn</p>
             <form className="flex gap-4 max-w-md mx-auto">
               <input
                 type="email"

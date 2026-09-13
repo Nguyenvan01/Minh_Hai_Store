@@ -47,6 +47,12 @@ function saveAuthToStorage(user, token) {
     } else {
       localStorage.removeItem(AUTH_STORAGE_KEY)
       localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
+      sessionStorage.removeItem(AUTH_STORAGE_KEY)
+      sessionStorage.removeItem(TOKEN_KEY)
+      sessionStorage.removeItem('user')
+      sessionStorage.removeItem('token')
     }
   } catch (error) {
     console.error('Error saving auth:', error)

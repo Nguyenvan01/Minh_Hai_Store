@@ -82,6 +82,7 @@ export function CartProvider({ children }) {
     const cartItem = {
       id: `${product.id}-${size || 'default'}-${color || 'default'}-${Date.now()}`,
       product_id: product.id,
+      variant_id: product.variant_id || product.selected_variant_id || null,
       name: product.name,
       slug: product.slug,
       price: parseFloat(product.price),

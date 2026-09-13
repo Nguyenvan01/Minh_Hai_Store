@@ -11,12 +11,41 @@ const generateToken = (user) => {
   )
 }
 
+const cleanAddressPart = (value) => {
+  const text = String(value ?? '').trim()
+  if (!text || ['null', 'undefined'].includes(text.toLowerCase())) return ''
+  return text
+}
+
+const joinAddressParts = (...parts) => parts.map(cleanAddressPart).filter(Boolean).join(', ')
+
+const formatOrderAddress = (order = {}) => {
+  const fullAddress = cleanAddressPart(order.shipping_full_address)
+  if (fullAddress) return fullAddress
+
+  const detail = cleanAddressPart(order.address_detail)
+  if (detail) {
+    return joinAddressParts(
+      detail,
+      order.shipping_ward_name || order.ward_name || order.shipping_ward || order.ward,
+      order.shipping_district_name || order.district_name || order.shipping_district || order.district,
+      order.shipping_city_name || order.city_name || order.shipping_city || order.city
+    )
+  }
+
+  return cleanAddressPart(order.shipping_address) || joinAddressParts(
+    order.shipping_ward_name || order.ward_name || order.shipping_ward || order.ward,
+    order.shipping_district_name || order.district_name || order.shipping_district || order.district,
+    order.shipping_city_name || order.city_name || order.shipping_city || order.city
+  )
+}
+
 // Auth
 exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body
     if (!email || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email và mật khẩu' })
-    const [users] = await db.query('SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ("admin", "manager", "staff")', [email])
+    const [users] = await db.query('SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ("admin", "manager", "staff", "warehouse")', [email])
     if (!users.length) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' })
     const user = users[0]
     const plainValid = password === 'admin123' || password === 'manager123' || password === 'staff123'
@@ -52,7 +81,7 @@ exports.adminProfile = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ? AND role IN ("admin","manager","staff")', [req.user.id])
+    const [rows] = await db.query('SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ? AND role IN ("admin","manager","staff","warehouse")', [req.user.id])
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' })
     res.json({ success: true, user: rows[0] })
   } catch (err) {
@@ -73,7 +102,7 @@ exports.updateProfile = async (req, res) => {
     const [rows] = await db.query('SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ?', [req.user.id])
     res.json({ success: true, user: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -84,10 +113,11 @@ exports.logout = async (req, res) => {
 // Dashboard
 exports.getDashboard = async (req, res) => {
   try {
-    const [[orders]] = await db.query('SELECT COUNT(*) as total, SUM(total_price) as revenue FROM orders')
+    const [[orders]] = await db.query("SELECT COUNT(*) as total, COALESCE(SUM(CASE WHEN status = 'delivered' THEN total_price ELSE 0 END), 0) as revenue FROM orders")
     const [[products]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = 1')
     const [[customers]] = await db.query('SELECT COUNT(*) as total FROM users WHERE role = "user"')
     const [[pendingOrders]] = await db.query("SELECT COUNT(*) as total FROM orders WHERE status = 'pending'")
+    const [[lowStockProducts]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = 1 AND stock > 0 AND stock <= 5')
 
     const statusBreakdown = await db.query(
       "SELECT status, COUNT(*) as count FROM orders GROUP BY status"
@@ -110,7 +140,7 @@ exports.getDashboard = async (req, res) => {
       'SELECT name, total_sold FROM products ORDER BY total_sold DESC LIMIT 5'
     )
     const [chartData] = await db.query(
-      "SELECT DATE_FORMAT(created_at, '%m/%Y') as name, SUM(total_price) as revenue, COUNT(*) as orders FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%m/%Y') ORDER BY MIN(created_at)"
+      "SELECT DATE_FORMAT(created_at, '%m/%Y') as name, SUM(CASE WHEN status = 'delivered' THEN total_price ELSE 0 END) as revenue, SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as orders FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%m/%Y') ORDER BY MIN(created_at)"
     )
 
     res.json({
@@ -122,7 +152,7 @@ exports.getDashboard = async (req, res) => {
         pendingOrders: pendingOrders.total || 0,
         monthlyRevenue: orders.revenue || 0,
         revenueGrowth: 0,
-        lowStockProducts: 0,
+        lowStockProducts: lowStockProducts.total || 0,
         ...statusMap,
       },
       recentOrders: recentOrders.map(o => ({ ...o, customer_name: o.customer_name || 'Khách vãng lai' })),
@@ -236,16 +266,15 @@ exports.getNotifications = async (req, res) => {
 
     // 5. Sản phẩm sắp hết hàng
     const lowStock = await safeQuery(`
-      SELECT id, name, stock, low_stock_threshold
-      FROM products
-      WHERE is_active = 1 AND stock <= low_stock_threshold AND stock > 0
+      SELECT id, name, stock FROM products
+      WHERE is_active = 1 AND stock > 0 AND stock <= 5
       ORDER BY stock ASC LIMIT 5
     `)
     for (const p of lowStock) {
       notifications.push({
         id: `low_stock_${p.id}`, type: 'low_stock',
         title: 'Sắp hết hàng',
-        message: `${p.name} - chỉ còn ${p.stock} cái (ngưỡng: ${p.low_stock_threshold})`,
+        message: `${p.name} - chỉ còn ${p.stock} cái`,
         time: null, link: '/admin/products', icon: 'alert_triangle', color: 'orange',
       })
     }
@@ -315,7 +344,7 @@ exports.getNotifications = async (req, res) => {
 
     // 10. Liên hệ chờ phản hồi
     const pendingContacts = await safeQuery(`
-      SELECT id, name, subject, created_at FROM contacts WHERE is_replied = 0 ORDER BY created_at DESC LIMIT 3
+      SELECT id, name, subject, created_at FROM contacts WHERE status = 'new' ORDER BY created_at DESC LIMIT 3
     `)
     for (const c of pendingContacts) {
       notifications.push({
@@ -349,7 +378,7 @@ exports.getNotifications = async (req, res) => {
     res.json({ notifications, counts })
   } catch (err) {
     console.error('[getNotifications]', err)
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -366,11 +395,12 @@ exports.getProducts = async (req, res) => {
 
     if (all === '1') {
       const [rows] = await db.query(
-        `SELECT p.id, p.name, p.slug, p.sku, p.price, p.cost_price, p.stock, p.category_id,
-         c.name as category_name,
+        `SELECT p.id, p.name, p.slug, p.sku, p.price, p.cost_price, p.stock, p.is_featured, p.category_id,
+         c.name as category_name, b.name as brand_name,
          (SELECT url FROM product_images WHERE product_id = p.id LIMIT 1) as image
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
+         LEFT JOIN brands b ON p.brand_id = b.id
          WHERE p.is_active = 1
          ORDER BY p.name ASC`
       )
@@ -392,7 +422,7 @@ exports.getProducts = async (req, res) => {
     const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM products p WHERE ${where}`, params)
     res.json({ products: rows, total, totalPages: Math.ceil(total / limit), page: parseInt(page) })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -409,42 +439,97 @@ exports.getProductById = async (req, res) => {
     )
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' })
     const product = { ...rows[0] }
-    if (product.images) product.images = product.images.split(',')
+
+    // Parse images
+    if (product.images) {
+      product.images = product.images.split(',').filter(Boolean)
+    } else {
+      product.images = []
+    }
+
+    // Load variants with size and color details
+    const [variants] = await db.query(`
+      SELECT pv.*, s.name as size_name, s.code as size_code, c.name as color_name, c.hex_code
+      FROM product_variants pv
+      LEFT JOIN sizes s ON pv.size_id = s.id
+      LEFT JOIN colors c ON pv.color_id = c.id
+      WHERE pv.product_id = ?
+      ORDER BY s.sort_order ASC, c.sort_order ASC
+    `, [req.params.id])
+    product.variants = variants
+
     res.json({ product })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.createProduct = async (req, res) => {
   try {
-    const { name, slug, short_description, description, price, compare_price, cost_price, sku, barcode, stock, category_id, brand_id, gender, age_group, material, pattern, season, is_featured, is_active, images } = req.body
+    console.log("Product payload:", req.body)
+    const { name, slug, short_description, description, price, compare_price, cost_price, sku, stock, category_id, brand_id, gender, material, is_featured, is_active, images, variants } = req.body
+
+    const columns = ['name', 'slug', 'short_description', 'description', 'price', 'compare_price', 'cost_price', 'sku', 'stock', 'category_id', 'brand_id', 'gender', 'material', 'is_featured', 'is_active']
+    const placeholders = columns.map(() => '?').join(', ')
+    const values = [name, slug, short_description, description, price, compare_price, cost_price, sku, stock, category_id, brand_id, gender, material, is_featured || false, is_active !== false]
+
+    console.log("Insert columns:", columns)
+    console.log("Insert values:", values)
+
     const [result] = await db.query(
-      `INSERT INTO products (name, slug, short_description, description, price, compare_price, cost_price, sku, barcode, stock, category_id, brand_id, gender, age_group, material, pattern, season, is_featured, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [name, slug, short_description, description, price, compare_price, cost_price, sku, barcode, stock, category_id, brand_id, gender, age_group, material, pattern, season, is_featured || false, is_active !== false]
+      `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders})`,
+      values
     )
+
+    const productId = result.insertId
 
     // Save images
     if (images && images.length > 0) {
-      const imageValues = images.map((url, idx) => [result.insertId, url, null, idx, idx === 0 ? 1 : 0, 0])
+      const imageValues = images.map((url, idx) => [productId, url, null, idx, idx === 0 ? 1 : 0, 0])
       await db.query(
-        `INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary, is_thumbnail) VALUES ?`,
+        `INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary, is_online_exclusive) VALUES ?`,
         [imageValues]
       )
     }
 
-    res.json({ success: true, product: { id: result.insertId, ...req.body } })
+    // Save variants
+    if (variants && variants.length > 0) {
+      const variantValues = variants.map(v => [
+        productId,
+        v.size_id || null,
+        v.color_id || null,
+        v.sku || null,
+        v.price || price,
+        v.stock || 0,
+        v.is_active !== false ? 1 : 0,
+      ])
+      await db.query(
+        `INSERT INTO product_variants (product_id, size_id, color_id, sku, price, stock, is_active) VALUES ?`,
+        [variantValues]
+      )
+    }
+
+    res.json({ success: true, product: { id: productId, ...req.body } })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('createProduct error:', err)
+    let message = 'Không thể tạo sản phẩm. Vui lòng kiểm tra lại thông tin.'
+    if (err.code === 'ER_DUP_ENTRY') {
+      message = 'Sản phẩm đã tồn tại (trùng slug hoặc SKU).'
+    } else if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      message = 'Danh mục hoặc thương hiệu không hợp lệ.'
+    } else if (err.code === 'ER_BAD_NULL_ERROR') {
+      message = 'Vui lòng nhập đầy đủ thông tin bắt buộc.'
+    }
+    res.status(500).json({ success: false, message })
   }
 }
 
 exports.updateProduct = async (req, res) => {
   try {
+    console.log("Update product body:", req.body)
     const fields = []
     const values = []
-    const allowed = ['name', 'slug', 'short_description', 'description', 'price', 'compare_price', 'cost_price', 'sku', 'barcode', 'stock', 'category_id', 'brand_id', 'gender', 'age_group', 'material', 'pattern', 'season', 'is_featured', 'is_active']
+    const allowed = ['name', 'slug', 'short_description', 'description', 'price', 'compare_price', 'cost_price', 'sku', 'stock', 'category_id', 'brand_id', 'gender', 'material', 'is_featured', 'is_active']
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         fields.push(`${key} = ?`)
@@ -461,8 +546,30 @@ exports.updateProduct = async (req, res) => {
       if (req.body.images && req.body.images.length > 0) {
         const imageValues = req.body.images.map((url, idx) => [req.params.id, url, null, idx, idx === 0 ? 1 : 0, 0])
         await db.query(
-          `INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary, is_thumbnail) VALUES ?`,
+          `INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary, is_online_exclusive) VALUES ?`,
           [imageValues]
+        )
+      }
+    }
+
+    // Update variants if provided
+    if (req.body.variants !== undefined) {
+      await db.query('DELETE FROM product_variants WHERE product_id = ?', [req.params.id])
+      const { variants } = req.body
+      if (variants && variants.length > 0) {
+        const price = req.body.price
+        const variantValues = variants.map(v => [
+          req.params.id,
+          v.size_id || null,
+          v.color_id || null,
+          v.sku || null,
+          v.price || price || null,
+          v.stock || 0,
+          v.is_active !== false ? 1 : 0,
+        ])
+        await db.query(
+          `INSERT INTO product_variants (product_id, size_id, color_id, sku, price, stock, is_active) VALUES ?`,
+          [variantValues]
         )
       }
     }
@@ -470,7 +577,14 @@ exports.updateProduct = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id])
     res.json({ success: true, product: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updateProduct error:', err)
+    let message = 'Không thể cập nhật sản phẩm. Vui lòng kiểm tra lại thông tin.'
+    if (err.code === 'ER_DUP_ENTRY') {
+      message = 'Sản phẩm đã tồn tại (trùng slug hoặc SKU).'
+    } else if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      message = 'Danh mục hoặc thương hiệu không hợp lệ.'
+    }
+    res.status(500).json({ success: false, message })
   }
 }
 
@@ -479,7 +593,7 @@ exports.deleteProduct = async (req, res) => {
     await db.query('DELETE FROM products WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -490,7 +604,7 @@ exports.toggleProduct = async (req, res) => {
     await db.query('UPDATE products SET is_active = ? WHERE id = ?', [!rows[0].is_active, req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -501,7 +615,7 @@ exports.toggleFeatured = async (req, res) => {
     await db.query('UPDATE products SET is_featured = ? WHERE id = ?', [!rows[0].is_featured, req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -511,7 +625,7 @@ exports.getCategories = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM categories ORDER BY sort_order ASC, id ASC')
     res.json({ categories: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -525,7 +639,7 @@ exports.createCategory = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM categories WHERE id = ?', [result.insertId])
     res.json({ success: true, category: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -545,7 +659,7 @@ exports.updateCategory = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM categories WHERE id = ?', [req.params.id])
     res.json({ success: true, category: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -554,7 +668,7 @@ exports.deleteCategory = async (req, res) => {
     await db.query('DELETE FROM categories WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -564,27 +678,27 @@ exports.getBrands = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM brands ORDER BY name ASC')
     res.json({ brands: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.createBrand = async (req, res) => {
   try {
-    const { name, slug, description, website, country, is_featured, is_active } = req.body
+    const { name, slug, description, logo, is_featured, is_active } = req.body
     const [result] = await db.query(
-      'INSERT INTO brands (name, slug, description, website, country, is_featured, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, slug, description, website, country, is_featured || false, is_active !== false]
+      'INSERT INTO brands (name, slug, description, logo, is_featured, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, slug, description, logo, is_featured || false, is_active !== false]
     )
     const [rows] = await db.query('SELECT * FROM brands WHERE id = ?', [result.insertId])
     res.json({ success: true, brand: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.updateBrand = async (req, res) => {
   try {
-    const allowed = ['name', 'slug', 'description', 'website', 'country', 'is_featured', 'is_active']
+    const allowed = ['name', 'slug', 'description', 'logo', 'is_featured', 'is_active']
     const fields = []
     const values = []
     for (const key of allowed) {
@@ -598,7 +712,7 @@ exports.updateBrand = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM brands WHERE id = ?', [req.params.id])
     res.json({ success: true, brand: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -607,7 +721,7 @@ exports.deleteBrand = async (req, res) => {
     await db.query('DELETE FROM brands WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -632,7 +746,7 @@ exports.getOrderStats = async (req, res) => {
     `)
     res.json({ stats: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -653,30 +767,23 @@ exports.getOrders = async (req, res) => {
       params.push(payment_status)
     }
     if (search) {
-      const normalizedSearch = normalizeSearch(search)
       const rawSearch = search.trim()
-      const s = `%${normalizedSearch.toLowerCase()}%`
+      const s = `%${rawSearch.toLowerCase()}%`
       const r = `%${rawSearch.toLowerCase()}%`
       const phoneRaw = `%${rawSearch.replace(/\s+/g, '')}%`
       const isNumeric = /^\d+$/.test(rawSearch)
-      const phoneReplaced = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(o.customer_phone, ' ', ''), '-', ''), '.', ''), '+84', '0'))`
-      const phoneUserReplaced = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '.', ''), '+84', '0'))`
       const conditions = [
         'o.order_number = ?',
-        'o.invoice_number = ?',
         'LOWER(o.order_number) LIKE ?',
         'LOWER(o.customer_email) LIKE ?',
         'LOWER(o.customer_name) LIKE ?',
-        'LOWER(o.company_name) LIKE ?',
         'LOWER(u.name) LIKE ?',
         'LOWER(u.email) LIKE ?',
-        `${phoneReplaced} LIKE ?`,
         'o.customer_phone LIKE ?',
-        `${phoneUserReplaced} LIKE ?`,
         'u.phone LIKE ?',
       ]
       const paramsArr = [
-        rawSearch, rawSearch, r, s, s, s, s, s, phoneRaw, r, phoneRaw, r,
+        rawSearch, r, s, s, s, s, phoneRaw, r,
       ]
       if (isNumeric) {
         conditions.unshift('o.id = ?')
@@ -695,10 +802,16 @@ exports.getOrders = async (req, res) => {
     }
 
     const [rows] = await db.query(
-      `SELECT o.id, o.order_number, u.name as customer_name, u.email as customer_email, u.phone as customer_phone,
+      `SELECT o.id, o.order_number,
+       COALESCE(u.name, o.customer_name) as customer_name,
+       COALESCE(u.email, o.customer_email) as customer_email,
+       COALESCE(u.phone, o.customer_phone) as customer_phone,
        o.total_price, o.subtotal, o.shipping_fee, o.discount_amount, o.status, o.payment_status, o.payment_method,
-       o.shipping_full_address, o.shipping_city, o.shipping_district,
-       o.points_earned, o.points_used, o.points_discount, o.discount_code,
+       o.recipient_name, o.recipient_phone,
+       o.shipping_address, o.address_detail,
+       o.shipping_city, o.shipping_district, o.shipping_ward,
+       o.shipping_city_name, o.shipping_district_name, o.shipping_ward_name, o.shipping_method,
+       o.points_earned, o.points_discount, o.discount_code,
        o.created_at, o.updated_at,
        (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
        FROM orders o LEFT JOIN users u ON o.user_id = u.id
@@ -708,9 +821,13 @@ exports.getOrders = async (req, res) => {
       [...params, parseInt(limit), parseInt(offset)]
     )
     const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM orders o LEFT JOIN users u ON o.user_id = u.id WHERE ${where}`, params)
+    const orders = rows.map(order => ({
+      ...order,
+      shipping_full_address: formatOrderAddress(order),
+    }))
 
     res.json({
-      orders: rows,
+      orders,
       total: parseInt(total),
       totalPages: Math.ceil(parseInt(total) / limit),
       page: parseInt(page),
@@ -718,14 +835,17 @@ exports.getOrders = async (req, res) => {
     })
   } catch (err) {
     console.error('[getOrders] Error:', err)
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách đơn hàng.' })
   }
 }
 
 exports.getOrderDetail = async (req, res) => {
   try {
     const [orders] = await db.query(
-      `SELECT o.*, u.name as customer_name, u.email as customer_email, u.phone as customer_phone
+      `SELECT o.*, u.id as customer_id,
+              COALESCE(u.name, o.customer_name) as customer_name,
+              COALESCE(u.email, o.customer_email) as customer_email,
+              COALESCE(u.phone, o.customer_phone) as customer_phone
        FROM orders o LEFT JOIN users u ON o.user_id = u.id
        WHERE o.id = ?`,
       [req.params.id]
@@ -733,39 +853,63 @@ exports.getOrderDetail = async (req, res) => {
     if (!orders.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' })
 
     const order = orders[0]
+    const shippingFullAddress = formatOrderAddress(order)
 
     const [items] = await db.query(
       `SELECT oi.id, oi.product_id, oi.variant_id,
-              oi.product_name, oi.product_sku, oi.product_image,
-              oi.size_name, oi.color_name, oi.variant_name,
-              oi.unit_price, oi.cost_price, oi.quantity,
-              oi.discount_amount, oi.tax_amount, oi.total_price,
-              oi.quantity_ordered, oi.quantity_shipped, oi.quantity_delivered,
-              oi.refund_quantity, oi.refund_amount,
+              COALESCE(NULLIF(oi.product_name, ''), p.name, 'Sản phẩm') as product_name,
+              COALESCE(NULLIF(oi.product_sku, ''), pv.sku, p.sku, '') as product_sku,
+              COALESCE(
+                NULLIF(oi.product_image, ''),
+                (SELECT url FROM product_images WHERE product_id = oi.product_id AND is_primary = TRUE LIMIT 1),
+                ''
+              ) as product_image,
+              oi.size_name, oi.color_name,
+              oi.unit_price, oi.quantity, oi.total_price,
               (SELECT url FROM product_images WHERE product_id = oi.product_id AND is_primary = TRUE LIMIT 1) as primary_image
-       FROM order_items oi WHERE oi.order_id = ?`,
-      [req.params.id]
-    )
-
-    const [logs] = await db.query(
-      `SELECT al.*, u.name as actor_name
-       FROM activity_logs al
-       LEFT JOIN users u ON al.user_id = u.id
-       WHERE al.entity_type = 'order' AND al.entity_id = ?
-       ORDER BY al.created_at DESC
-       LIMIT 20`,
+       FROM order_items oi
+       LEFT JOIN products p ON p.id = oi.product_id
+       LEFT JOIN product_variants pv ON pv.id = oi.variant_id
+       WHERE oi.order_id = ?`,
       [req.params.id]
     )
 
     res.json({
       order: {
         ...order,
+        shipping_full_address: shippingFullAddress,
+        customer: {
+          id: order.customer_id,
+          name: order.customer_name,
+          email: order.customer_email,
+          phone: order.customer_phone,
+        },
+        shipping_info: {
+          recipient_name: cleanAddressPart(order.recipient_name) || order.customer_name,
+          recipient_phone: cleanAddressPart(order.recipient_phone) || order.customer_phone,
+          address: shippingFullAddress,
+          address_detail: cleanAddressPart(order.address_detail) || cleanAddressPart(order.shipping_address),
+          ward: order.shipping_ward || order.ward,
+          district: order.shipping_district || order.district,
+          city: order.shipping_city || order.city,
+          ward_name: order.shipping_ward_name || order.ward_name,
+          district_name: order.shipping_district_name || order.district_name,
+          city_name: order.shipping_city_name || order.city_name,
+          method: order.shipping_method || 'standard',
+        },
+        payment_info: {
+          method: order.payment_method,
+          status: order.payment_status,
+          payment_id: order.payment_id,
+          paid_at: order.paid_at,
+        },
+        order_items: items,
         items,
-        logs: logs || []
       }
     })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('[getOrderDetail] Error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải chi tiết đơn hàng.' })
   }
 }
 
@@ -804,29 +948,29 @@ exports.updateOrderStatus = async (req, res) => {
 
     if (note) {
       await conn.query(
-        'UPDATE orders SET admin_note = CONCAT(IFNULL(admin_note, ""), ?, "\n") WHERE id = ?',
-        [`[${status}] ${note}`, orderId]
+        'UPDATE orders SET updated_at = NOW() WHERE id = ?',
+        [orderId]
       )
     }
 
     if (status === 'cancelled' && order.payment_status === 'paid') {
       await conn.query(
-        'UPDATE orders SET payment_status = ?, refunded_at = NOW(), refund_amount = total_price WHERE id = ?',
+        'UPDATE orders SET payment_status = ?, `refunded_at` = NOW(), `refund_amount` = total_price WHERE id = ?',
         ['refunded', orderId]
       )
     }
 
     await conn.query(
-      `INSERT INTO activity_logs (entity_type, entity_id, action, user_id, description, created_at)
-       VALUES ('order', ?, ?, ?, ?, NOW())`,
-      [orderId, status, req.user?.id || null, `Đơn hàng chuyển trạng thái: ${order.status} → ${status}`]
+      `INSERT INTO notifications (user_id, type, title, message, link, created_at)
+       VALUES (?, 'order_update', 'Cập nhật đơn hàng', ?, '/orders', NOW())`,
+      [order.user_id, `Đơn hàng #${order.order_number} đã được cập nhật: ${order.status} → ${status}`]
     )
 
     await conn.commit()
     res.json({ success: true, status })
   } catch (err) {
     await conn.rollback()
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   } finally {
     conn.release()
   }
@@ -844,7 +988,7 @@ exports.updatePaymentStatus = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn hàng đã thanh toán, không thể thay đổi' })
     }
 
-    const allowedStatuses = ['unpaid', 'paid', 'partially_paid', 'refunded', 'failed']
+    const allowedStatuses = ['unpaid', 'paid', 'partially_paid', 'refunded']
     if (!allowedStatuses.includes(payment_status)) {
       return res.status(400).json({ success: false, message: 'Trạng thái thanh toán không hợp lệ' })
     }
@@ -858,14 +1002,14 @@ exports.updatePaymentStatus = async (req, res) => {
     )
 
     await db.query(
-      `INSERT INTO activity_logs (entity_type, entity_id, action, user_id, description, created_at)
-       VALUES ('order', ?, ?, ?, ?, NOW())`,
-      [orderId, payment_status, req.user?.id || null, `Cập nhật thanh toán: ${order.payment_status} → ${payment_status}`]
+      `INSERT INTO notifications (user_id, type, title, message, link, created_at)
+       VALUES (?, 'payment_update', 'Cập nhật thanh toán', ?, '/orders', NOW())`,
+      [order.user_id, `Đơn hàng #${order.order_number} - Thanh toán: ${order.payment_status} → ${payment_status}`]
     )
 
     res.json({ success: true, payment_status })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -894,30 +1038,30 @@ exports.cancelOrder = async (req, res) => {
 
     if (order.payment_status === 'paid') {
       await conn.query(
-        'UPDATE orders SET payment_status = ?, refunded_at = NOW(), refund_amount = total_price WHERE id = ?',
+        'UPDATE orders SET payment_status = ?, `refunded_at` = NOW(), `refund_amount` = total_price WHERE id = ?',
         ['refunded', orderId]
       )
     }
 
-    if (order.points_used > 0) {
+    if (order.points_discount > 0) {
       await conn.query(
         `INSERT INTO reward_points (user_id, points, points_type, balance_after, description, order_id, created_at)
          VALUES (?, ?, 'refund', NULL, ?, ?, NOW())`,
-        [order.user_id, order.points_used, `Hoàn điểm do hủy đơn #${order.order_number}`, orderId]
+        [order.user_id, order.points_discount, `Hoàn điểm do hủy đơn #${order.order_number}`, orderId]
       )
     }
 
     await conn.query(
-      `INSERT INTO activity_logs (entity_type, entity_id, action, user_id, description, created_at)
-       VALUES ('order', ?, ?, ?, ?, NOW())`,
-      [orderId, 'cancelled', req.user?.id || null, reason || 'Đơn hàng bị hủy']
+      `INSERT INTO notifications (user_id, type, title, message, link, created_at)
+       VALUES (?, 'order_update', 'Đơn hàng bị hủy', ?, '/orders', NOW())`,
+      [order.user_id, `Đơn hàng #${order.order_number} đã bị hủy. ${reason || ''}`]
     )
 
     await conn.commit()
     res.json({ success: true })
   } catch (err) {
     await conn.rollback()
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   } finally {
     conn.release()
   }
@@ -934,238 +1078,532 @@ exports.getCustomers = async (req, res) => {
     if (search) { where += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`) }
 
     const [rows] = await db.query(
-      `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active, u.created_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active, u.reward_points, u.created_at,
        (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as order_count,
-       (SELECT SUM(total_price) FROM orders WHERE user_id = u.id AND payment_status = 'paid') as total_spent,
-       (SELECT balance_after FROM reward_points WHERE user_id = u.id ORDER BY id DESC LIMIT 1) as reward_points
+       (SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE user_id = u.id AND payment_status = 'paid') as total_spent
        FROM users u WHERE ${where}
        ORDER BY u.created_at DESC
        LIMIT ? OFFSET ?`,
       [...params, parseInt(limit), parseInt(offset)]
     )
     const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM users u WHERE ${where}`, params)
-    res.json({ customers: rows, total, totalPages: Math.ceil(total / limit), page: parseInt(page) })
+    res.json({ success: true, customers: rows, total, totalPages: Math.ceil(total / limit), page: parseInt(page) })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getCustomers error:', err)
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
+  }
+}
+
+exports.createCustomer = async (req, res) => {
+  try {
+    const { name, email, password, phone, is_active = true } = req.body
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Họ và tên không được để trống.' })
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email không được để trống.' })
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: 'Email không đúng định dạng.' })
+    }
+    if (password && password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự.' })
+    }
+    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email])
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email đã tồn tại.' })
+    }
+
+    const hashedPassword = password
+      ? (password === 'admin123' || password === 'manager123' || password === 'staff123'
+          ? password
+          : require('bcryptjs').hashSync(password, 10))
+      : require('bcryptjs').hashSync('customer123', 10)
+
+    const [result] = await db.query(
+      `INSERT INTO users (name, email, password, phone, role, is_active) VALUES (?, ?, ?, ?, 'user', ?)`,
+      [name.trim(), email.toLowerCase().trim(), hashedPassword, phone || null, is_active]
+    )
+
+    const [rows] = await db.query(
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active, u.reward_points, u.created_at,
+       (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as order_count,
+       (SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE user_id = u.id AND payment_status = 'paid') as total_spent
+       FROM users u WHERE u.id = ?`,
+      [result.insertId]
+    )
+    res.json({ success: true, customer: rows[0] })
+  } catch (err) {
+    console.error('createCustomer error:', err)
+    let message = 'Không thể thêm khách hàng. Vui lòng kiểm tra lại thông tin.'
+    if (err.code === 'ER_DUP_ENTRY') message = 'Email đã tồn tại.'
+    res.status(500).json({ success: false, message })
   }
 }
 
 exports.getCustomerDetail = async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.created_at,
+      `SELECT u.id, u.name, u.email, u.phone, u.is_active, u.reward_points, u.created_at,
        (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as order_count,
-       (SELECT SUM(total_price) FROM orders WHERE user_id = u.id) as total_spent
+       (SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE user_id = u.id AND payment_status = 'paid') as total_spent
        FROM users u WHERE u.id = ?`,
       [req.params.id]
     )
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' })
-    res.json({ customer: rows[0] })
+
+    const customer = { ...rows[0] }
+
+    const [recentOrders] = await db.query(
+      `SELECT id, order_number, total_price, status, payment_status, created_at
+       FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 5`,
+      [req.params.id]
+    )
+    customer.recent_orders = recentOrders
+
+    res.json({ success: true, customer })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getCustomerDetail error:', err)
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.updateCustomer = async (req, res) => {
   try {
-    const { name, phone, is_active } = req.body
+    const { name, email, phone, is_active, password } = req.body
     const updates = []
     const values = []
-    if (name !== undefined) { updates.push('name = ?'); values.push(name) }
-    if (phone !== undefined) { updates.push('phone = ?'); values.push(phone) }
+
+    if (name !== undefined && name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Họ và tên không được để trống.' })
+    }
+    if (email !== undefined) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ success: false, message: 'Email không đúng định dạng.' })
+      }
+      const [existing] = await db.query('SELECT id FROM users WHERE email = ? AND id != ?', [email, req.params.id])
+      if (existing.length > 0) {
+        return res.status(400).json({ success: false, message: 'Email đã tồn tại.' })
+      }
+      updates.push('email = ?')
+      values.push(email.toLowerCase().trim())
+    }
+    if (name !== undefined) { updates.push('name = ?'); values.push(name.trim()) }
+    if (phone !== undefined) { updates.push('phone = ?'); values.push(phone || null) }
     if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active) }
-    if (!updates.length) return res.status(400).json({ success: false, message: 'Không có gì để cập nhật' })
+    if (password && password.trim()) {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự.' })
+      }
+      updates.push('password = ?')
+      values.push(require('bcryptjs').hashSync(password, 10))
+    }
+
+    if (!updates.length) return res.status(400).json({ success: false, message: 'Không có gì để cập nhật.' })
     values.push(req.params.id)
     await db.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values)
-    res.json({ success: true })
+
+    const [rows] = await db.query(
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active, u.reward_points, u.created_at,
+       (SELECT COUNT(*) FROM orders WHERE user_id = u.id) as order_count,
+       (SELECT COALESCE(SUM(total_price), 0) FROM orders WHERE user_id = u.id AND payment_status = 'paid') as total_spent
+       FROM users u WHERE u.id = ?`,
+      [req.params.id]
+    )
+    res.json({ success: true, customer: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updateCustomer error:', err)
+    let message = 'Không thể cập nhật khách hàng. Vui lòng kiểm tra lại thông tin.'
+    if (err.code === 'ER_DUP_ENTRY') message = 'Email đã tồn tại.'
+    res.status(500).json({ success: false, message })
   }
 }
 
-// Employees
+exports.deleteCustomer = async (req, res) => {
+  try {
+    const [[customer]] = await db.query('SELECT id FROM users WHERE id = ? AND role = "user"', [req.params.id])
+    if (!customer) return res.status(404).json({ success: false, message: 'Không tìm thấy khách hàng.' })
+
+    const [[orderCount]] = await db.query(
+      'SELECT COUNT(*) as count FROM orders WHERE user_id = ?',
+      [req.params.id]
+    )
+
+    if (orderCount.count > 0) {
+      await db.query('UPDATE users SET is_active = FALSE WHERE id = ?', [req.params.id])
+      return res.json({
+        success: true,
+        message: 'Đã khóa tài khoản vì khách hàng đã có đơn hàng. Không thể xóa cứng.',
+        blocked: true,
+      })
+    }
+
+    await db.query('DELETE FROM addresses WHERE user_id = ?', [req.params.id])
+    await db.query('DELETE FROM users WHERE id = ? AND role = "user"', [req.params.id])
+    res.json({ success: true, message: 'Đã xóa khách hàng.' })
+  } catch (err) {
+    console.error('deleteCustomer error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa khách hàng. Vui lòng thử lại.' })
+  }
+}
+
+// Employees (using users table with admin/manager/staff roles)
 exports.getEmployees = async (req, res) => {
   try {
     const { page = 1, search } = req.query
     const limit = 20
     const offset = (page - 1) * limit
-    let where = '1=1'
+    let where = 'role IN ("admin", "manager", "staff", "warehouse")'
     let params = []
     if (search) { where += ' AND (name LIKE ? OR email LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
 
     const [rows] = await db.query(
-      `SELECT id, employee_code, full_name, email, phone, id_card, position, department, hire_date, salary, commission_rate, is_active, gender
-       FROM employees
+      `SELECT id, name, email, phone, role, is_active, created_at
+       FROM users
        WHERE ${where}
-       ORDER BY hire_date DESC
+       ORDER BY created_at DESC
        LIMIT ? OFFSET ?`,
       [...params, parseInt(limit), parseInt(offset)]
     )
-    const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM employees WHERE ${where}`, params)
+    const [[{ total }]] = await db.query(`SELECT COUNT(*) as total FROM users WHERE ${where}`, params)
     res.json({ employees: rows, total, totalPages: Math.ceil(total / limit), page: parseInt(page) })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getEmployees error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách nhân viên.' })
   }
 }
 
+const VALID_ROLES = ['admin', 'manager', 'staff', 'warehouse']
+
 exports.createEmployee = async (req, res) => {
   try {
-    const { first_name, last_name, email, phone, id_card, position, department, hire_date, salary, commission_rate, gender } = req.body
-    const full_name = `${first_name} ${last_name}`.trim()
-    // Format hire_date to YYYY-MM-DD
-    let hireDateVal = null
-    if (hire_date) {
-      const dateVal = new Date(hire_date)
-      if (!isNaN(dateVal)) {
-        hireDateVal = dateVal.toISOString().split('T')[0]
-      }
+    const { name, email, password, phone, role = 'staff', is_active = true } = req.body
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Họ và tên không được để trống.' })
     }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ success: false, message: 'Email không được để trống.' })
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: 'Email không đúng định dạng.' })
+    }
+    if (!VALID_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Vai trò nhân viên không hợp lệ.' })
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'Mật khẩu phải có ít nhất 6 ký tự.' })
+    }
+
+    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email])
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email đã tồn tại.' })
+    }
+
+    const hashedPassword = require('bcryptjs').hashSync(password, 10)
     const [result] = await db.query(
-      `INSERT INTO employees (full_name, email, phone, id_card, position, department, hire_date, salary, commission_rate, gender, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-      [full_name, email, phone, id_card, position, department, hireDateVal, salary, commission_rate || 0, gender || 'male']
+      `INSERT INTO users (name, email, password, phone, role, is_active) VALUES (?, ?, ?, ?, ?, ?)`,
+      [name.trim(), email.toLowerCase().trim(), hashedPassword, phone || null, role, is_active]
     )
-    await db.query('UPDATE employees SET employee_code = ? WHERE id = ?', [`EMP-${String(result.insertId).padStart(3, '0')}`, result.insertId])
-    const [rows] = await db.query('SELECT * FROM employees WHERE id = ?', [result.insertId])
+    const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [result.insertId])
     res.json({ success: true, employee: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('createEmployee error:', err)
+    let message = 'Không thể tạo nhân viên. Vui lòng kiểm tra lại thông tin.'
+    if (err.code === 'ER_DUP_ENTRY') message = 'Email đã tồn tại.'
+    res.status(500).json({ success: false, message })
   }
 }
 
 exports.updateEmployee = async (req, res) => {
   try {
-    const { first_name, last_name, email, phone, id_card, position, department, hire_date, salary, commission_rate, gender } = req.body
-    const full_name = `${first_name || ''} ${last_name || ''}`.trim()
-    const allowed = ['email', 'phone', 'id_card', 'position', 'department', 'salary', 'commission_rate', 'gender']
-    const fields = []
+    const { name, phone, role, is_active } = req.body
+    const updates = []
     const values = []
-    if (full_name) { fields.push('full_name = ?'); values.push(full_name) }
-    // Format hire_date to YYYY-MM-DD
-    if (hire_date) {
-      const dateVal = new Date(hire_date)
-      if (!isNaN(dateVal)) {
-        fields.push('hire_date = ?')
-        values.push(dateVal.toISOString().split('T')[0])
-      }
+
+    if (name !== undefined && name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Họ và tên không được để trống.' })
     }
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) {
-        fields.push(`${key} = ?`)
-        values.push(req.body[key])
-      }
+    if (role !== undefined && !VALID_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Vai trò nhân viên không hợp lệ.' })
     }
+
+    if (name !== undefined) { updates.push('name = ?'); values.push(name.trim()) }
+    if (phone !== undefined) { updates.push('phone = ?'); values.push(phone || null) }
+    if (role !== undefined) { updates.push('role = ?'); values.push(role) }
+    if (is_active !== undefined) { updates.push('is_active = ?'); values.push(is_active) }
+    if (!updates.length) return res.status(400).json({ success: false, message: 'Không có gì để cập nhật' })
     values.push(req.params.id)
-    await db.query(`UPDATE employees SET ${fields.join(', ')} WHERE id = ?`, values)
-    const [rows] = await db.query('SELECT * FROM employees WHERE id = ?', [req.params.id])
+    await db.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, values)
+    const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.id])
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy nhân viên.' })
     res.json({ success: true, employee: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updateEmployee error:', err)
+    let message = 'Không thể cập nhật nhân viên. Vui lòng kiểm tra lại thông tin.'
+    if (err.code === 'ER_TRUNCATED_WRONG_VALUE_FOR_FIELD') message = 'Vai trò nhân viên không hợp lệ.'
+    res.status(500).json({ success: false, message })
   }
 }
 
 exports.deleteEmployee = async (req, res) => {
-  try {
-    await db.query('DELETE FROM employees WHERE id = ?', [req.params.id])
-    res.json({ success: true })
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
-  }
+  res.status(400).json({ success: false, message: 'Không thể xóa tài khoản nhân viên. Vui lòng vô hiệu hóa tài khoản.' })
 }
 
 exports.toggleEmployee = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT is_active FROM employees WHERE id = ?', [req.params.id])
+    const [rows] = await db.query('SELECT is_active FROM users WHERE id = ? AND role IN ("admin","manager","staff","warehouse")', [req.params.id])
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' })
-    await db.query('UPDATE employees SET is_active = ? WHERE id = ?', [!rows[0].is_active, req.params.id])
+    await db.query('UPDATE users SET is_active = ? WHERE id = ?', [!rows[0].is_active, req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
-// Promotions
+const PROMOTION_SELECT = `
+  SELECT id, title, title as name, slug, description, image_url,
+         discount_type, discount_value,
+         DATE_FORMAT(start_date, '%Y-%m-%d') as start_date,
+         DATE_FORMAT(end_date, '%Y-%m-%d') as end_date,
+         is_active, is_featured, created_at, updated_at
+  FROM promotions
+`
+
+const slugifyPromotion = (value) => {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+const toBool = (value) => value === true || value === 1 || value === '1' || value === 'true'
+
+const mapPromotion = (row) => ({
+  ...row,
+  discount_value: Number(row.discount_value) || 0,
+  is_active: Boolean(row.is_active),
+  is_featured: Boolean(row.is_featured),
+})
+
+const collectPromotionPayload = (body, partial = false) => {
+  const payload = {}
+  const errors = []
+  const title = body.title !== undefined ? body.title : body.name
+
+  if (!partial || title !== undefined) {
+    const cleanTitle = String(title || '').trim()
+    if (!cleanTitle) errors.push('Tên khuyến mãi không được để trống.')
+    else payload.title = cleanTitle
+  }
+
+  if (body.slug !== undefined || (!partial && title !== undefined)) {
+    payload.slug = slugifyPromotion(body.slug !== undefined ? body.slug : title) || null
+  }
+
+  if (body.description !== undefined) payload.description = String(body.description || '').trim() || null
+  if (body.image_url !== undefined || body.image !== undefined) {
+    payload.image_url = String(body.image_url !== undefined ? body.image_url : body.image || '').trim() || null
+  }
+
+  if (!partial || body.discount_type !== undefined) {
+    const discountType = body.discount_type || 'percentage'
+    if (!['percentage', 'fixed_amount'].includes(discountType)) errors.push('Loại giảm giá không hợp lệ.')
+    else payload.discount_type = discountType
+  }
+
+  if (!partial || body.discount_value !== undefined) {
+    const discountValue = Number(body.discount_value)
+    if (!Number.isFinite(discountValue) || discountValue <= 0) errors.push('Giá trị giảm phải lớn hơn 0.')
+    else payload.discount_value = discountValue
+  }
+
+  if (!partial || body.start_date !== undefined || body.valid_from !== undefined) {
+    const startDate = body.start_date !== undefined ? body.start_date : body.valid_from
+    if (!startDate) errors.push('Ngày bắt đầu không được để trống.')
+    else payload.start_date = startDate
+  }
+
+  if (!partial || body.end_date !== undefined || body.valid_until !== undefined) {
+    const endDate = body.end_date !== undefined ? body.end_date : body.valid_until
+    if (!endDate) errors.push('Ngày kết thúc không được để trống.')
+    else payload.end_date = endDate
+  }
+
+  if (!partial || body.is_active !== undefined) {
+    payload.is_active = body.is_active === undefined ? true : toBool(body.is_active)
+  }
+  if (!partial || body.is_featured !== undefined) {
+    payload.is_featured = body.is_featured === undefined ? false : toBool(body.is_featured)
+  }
+
+  return { payload, errors }
+}
+
+const validatePromotionRules = (promotion) => {
+  const errors = []
+  const discountValue = Number(promotion.discount_value)
+  if (!Number.isFinite(discountValue) || discountValue <= 0) errors.push('Giá trị giảm phải lớn hơn 0.')
+  if (promotion.discount_type === 'percentage' && discountValue > 100) errors.push('Giá trị giảm theo phần trăm không được vượt quá 100.')
+
+  const startDate = new Date(promotion.start_date)
+  const endDate = new Date(promotion.end_date)
+  if (Number.isNaN(startDate.getTime())) errors.push('Ngày bắt đầu không hợp lệ.')
+  if (Number.isNaN(endDate.getTime())) errors.push('Ngày kết thúc không hợp lệ.')
+  if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate < startDate) {
+    errors.push('Ngày kết thúc không được nhỏ hơn ngày bắt đầu.')
+  }
+  return errors
+}
+
+const getPromotionRow = async (id) => {
+  const [rows] = await db.query(`${PROMOTION_SELECT} WHERE id = ?`, [id])
+  return rows[0] ? mapPromotion(rows[0]) : null
+}
+
 exports.getPromotions = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM promotions ORDER BY created_at DESC')
-    res.json({ promotions: rows })
+    const [rows] = await db.query(`${PROMOTION_SELECT} ORDER BY is_featured DESC, start_date DESC, created_at DESC`)
+    res.json({ success: true, promotions: rows.map(mapPromotion) })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getPromotions error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách khuyến mãi.' })
+  }
+}
+
+exports.getPromotionById = async (req, res) => {
+  try {
+    const promotion = await getPromotionRow(req.params.id)
+    if (!promotion) return res.status(404).json({ success: false, message: 'Không tìm thấy khuyến mãi.' })
+    res.json({ success: true, promotion })
+  } catch (err) {
+    console.error('getPromotionById error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải khuyến mãi.' })
   }
 }
 
 exports.createPromotion = async (req, res) => {
   try {
-    const { name, slug, description, promotion_type, discount_type, discount_value, max_discount_amount, valid_from, valid_until, is_active, is_featured } = req.body
+    const { payload, errors } = collectPromotionPayload(req.body)
+    const ruleErrors = validatePromotionRules(payload)
+    const allErrors = [...errors, ...ruleErrors]
+    if (allErrors.length) return res.status(400).json({ success: false, message: allErrors[0] })
+
     const [result] = await db.query(
-      'INSERT INTO promotions (name, slug, description, promotion_type, discount_type, discount_value, max_discount_amount, valid_from, valid_until, is_active, is_featured, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [name, slug, description, promotion_type, discount_type, discount_value, max_discount_amount, valid_from, valid_until, is_active !== false, is_featured || false]
+      `INSERT INTO promotions
+        (title, slug, description, image_url, discount_type, discount_value, start_date, end_date, is_active, is_featured)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        payload.title,
+        payload.slug,
+        payload.description || null,
+        payload.image_url || null,
+        payload.discount_type,
+        payload.discount_value,
+        payload.start_date,
+        payload.end_date,
+        payload.is_active,
+        payload.is_featured,
+      ]
     )
-    const [rows] = await db.query('SELECT * FROM promotions WHERE id = ?', [result.insertId])
-    res.json({ success: true, promotion: rows[0] })
+
+    const promotion = await getPromotionRow(result.insertId)
+    res.status(201).json({ success: true, promotion })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('createPromotion error:', err)
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Slug khuyến mãi đã tồn tại.' })
+    }
+    res.status(500).json({ success: false, message: 'Không thể lưu khuyến mãi. Vui lòng kiểm tra lại thông tin.' })
   }
 }
 
 exports.updatePromotion = async (req, res) => {
   try {
-    const allowed = ['name', 'slug', 'description', 'promotion_type', 'discount_type', 'discount_value', 'max_discount_amount', 'valid_from', 'valid_until', 'is_active', 'is_featured']
-    const fields = []
-    const values = []
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) {
-        fields.push(`${key} = ?`)
-        values.push(req.body[key])
-      }
+    const current = await getPromotionRow(req.params.id)
+    if (!current) return res.status(404).json({ success: false, message: 'Không tìm thấy khuyến mãi.' })
+
+    const { payload, errors } = collectPromotionPayload(req.body, true)
+    if (!Object.keys(payload).length) {
+      return res.status(400).json({ success: false, message: 'Không có gì để cập nhật.' })
     }
+
+    const nextPromotion = { ...current, ...payload }
+    const ruleErrors = validatePromotionRules(nextPromotion)
+    const allErrors = [...errors, ...ruleErrors]
+    if (allErrors.length) return res.status(400).json({ success: false, message: allErrors[0] })
+
+    const fields = Object.keys(payload)
+    const values = fields.map((field) => payload[field])
     values.push(req.params.id)
-    await db.query(`UPDATE promotions SET ${fields.join(', ')} WHERE id = ?`, values)
-    const [rows] = await db.query('SELECT * FROM promotions WHERE id = ?', [req.params.id])
-    res.json({ success: true, promotion: rows[0] })
+
+    await db.query(`UPDATE promotions SET ${fields.map((field) => `${field} = ?`).join(', ')} WHERE id = ?`, values)
+    const promotion = await getPromotionRow(req.params.id)
+    res.json({ success: true, promotion })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updatePromotion error:', err)
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Slug khuyến mãi đã tồn tại.' })
+    }
+    res.status(500).json({ success: false, message: 'Không thể lưu khuyến mãi. Vui lòng kiểm tra lại thông tin.' })
   }
 }
 
 exports.deletePromotion = async (req, res) => {
   try {
-    await db.query('DELETE FROM promotions WHERE id = ?', [req.params.id])
+    const [result] = await db.query('DELETE FROM promotions WHERE id = ?', [req.params.id])
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Không tìm thấy khuyến mãi.' })
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('deletePromotion error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa khuyến mãi.' })
   }
 }
 
 // Coupons
 exports.getCoupons = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM coupons ORDER BY created_at DESC')
+    const [rows] = await db.query(
+      `SELECT id, code, title as name, description, discount_type, discount_value,
+              min_order_amount, max_usage_total, max_usage_per_user,
+              valid_from, valid_until, is_active, is_public, used_count, created_at
+       FROM vouchers ORDER BY created_at DESC`
+    )
     res.json({ coupons: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.createCoupon = async (req, res) => {
   try {
-    const { code, name, description, coupon_type, discount_type, discount_value, max_discount_amount, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public } = req.body
+    const { code, name, description, discount_type, discount_value, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public } = req.body
     const [result] = await db.query(
-      'INSERT INTO coupons (code, name, description, coupon_type, discount_type, discount_value, max_discount_amount, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-      [code, name, description, coupon_type, discount_type, discount_value, max_discount_amount, min_order_amount, max_usage_total, max_usage_per_user || 1, valid_from, valid_until, is_active !== false, is_public !== false]
+      `INSERT INTO vouchers (code, title, description, discount_type, discount_value, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [code, name, description, discount_type, discount_value, min_order_amount, max_usage_total, max_usage_per_user || 1, valid_from, valid_until, is_active !== false, is_public !== false]
     )
-    const [rows] = await db.query('SELECT * FROM coupons WHERE id = ?', [result.insertId])
+    const [rows] = await db.query('SELECT id, code, title as name, description, discount_type, discount_value, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public, used_count, created_at FROM vouchers WHERE id = ?', [result.insertId])
     res.json({ success: true, coupon: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.updateCoupon = async (req, res) => {
   try {
-    const allowed = ['code', 'name', 'description', 'coupon_type', 'discount_type', 'discount_value', 'max_discount_amount', 'min_order_amount', 'max_usage_total', 'max_usage_per_user', 'valid_from', 'valid_until', 'is_active', 'is_public']
+    const allowed = ['code', 'description', 'discount_type', 'discount_value', 'min_order_amount', 'max_usage_total', 'max_usage_per_user', 'valid_from', 'valid_until', 'is_active', 'is_public']
     const fields = []
     const values = []
+    if (req.body.name !== undefined) { fields.push('title = ?'); values.push(req.body.name) }
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         fields.push(`${key} = ?`)
@@ -1173,20 +1611,20 @@ exports.updateCoupon = async (req, res) => {
       }
     }
     values.push(req.params.id)
-    await db.query(`UPDATE coupons SET ${fields.join(', ')} WHERE id = ?`, values)
-    const [rows] = await db.query('SELECT * FROM coupons WHERE id = ?', [req.params.id])
+    await db.query(`UPDATE vouchers SET ${fields.join(', ')} WHERE id = ?`, values)
+    const [rows] = await db.query('SELECT id, code, title as name, description, discount_type, discount_value, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public, used_count, created_at FROM vouchers WHERE id = ?', [req.params.id])
     res.json({ success: true, coupon: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 exports.deleteCoupon = async (req, res) => {
   try {
-    await db.query('DELETE FROM coupons WHERE id = ?', [req.params.id])
+    await db.query('DELETE FROM vouchers WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1195,11 +1633,11 @@ exports.getWarehouse = async (req, res) => {
   try {
     const { filter } = req.query
     let where = '1=1'
-    if (filter === 'low') where = 'p.stock <= p.low_stock_threshold AND p.stock > 0'
+    if (filter === 'low') where = 'p.stock > 0 AND p.stock <= 5'
     if (filter === 'out') where = 'p.stock = 0'
 
     const [products] = await db.query(
-      `SELECT p.id, p.name, p.sku, p.stock, p.low_stock_threshold, p.price, p.cost_price, c.name as category_name
+      `SELECT p.id, p.name, p.sku, p.stock, p.price, p.cost_price, c.name as category_name
        FROM products p LEFT JOIN categories c ON p.category_id = c.id
        WHERE ${where}
        ORDER BY p.stock ASC`
@@ -1208,7 +1646,7 @@ exports.getWarehouse = async (req, res) => {
       `SELECT
         COUNT(*) as totalProducts,
         COALESCE(SUM(stock), 0) as totalStock,
-        SUM(CASE WHEN stock <= low_stock_threshold AND stock > 0 THEN 1 ELSE 0 END) as lowStock,
+        SUM(CASE WHEN stock <= 5 AND stock > 0 THEN 1 ELSE 0 END) as lowStock,
         SUM(CASE WHEN stock = 0 THEN 1 ELSE 0 END) as outOfStock,
         COALESCE(SUM(COALESCE(cost_price, 0) * stock), 0) as totalValue
        FROM products`
@@ -1224,32 +1662,42 @@ exports.getWarehouse = async (req, res) => {
       products,
     })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
 // Supplier Orders
+// Supplier Orders (tables do not exist in current schema - stubbed)
 exports.getSupplierOrders = async (req, res) => {
   try {
-    const { search, status, supplier_id } = req.query
-    let where = '1=1'
-    let params = []
-    if (search) { where += ' AND (so.order_code LIKE ? OR s.name LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
-    if (status) { where += ' AND so.status = ?'; params.push(status) }
-    if (supplier_id) { where += ' AND so.supplier_id = ?'; params.push(supplier_id) }
-    const [rows] = await db.query(
-      `SELECT so.*, s.name as supplier_name, w.name as warehouse_name
-       FROM supplier_orders so
-       LEFT JOIN suppliers s ON so.supplier_id = s.id
-       LEFT JOIN warehouses w ON so.warehouse_id = w.id
-       WHERE ${where}
-       ORDER BY so.created_at DESC`,
-      params
-    )
-    res.json({ orders: rows })
+    res.json({ orders: [] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
+}
+
+exports.createSupplierOrder = async (req, res) => {
+  res.status(501).json({ success: false, message: 'Tính năng đang được phát triển' })
+}
+
+exports.updateSupplierOrder = async (req, res) => {
+  res.status(501).json({ success: false, message: 'Tính năng đang được phát triển' })
+}
+
+exports.deleteSupplierOrder = async (req, res) => {
+  res.status(501).json({ success: false, message: 'Tính năng đang được phát triển' })
+}
+
+exports.getSupplierOrderDetail = async (req, res) => {
+  res.status(501).json({ success: false, message: 'Tính năng đang được phát triển' })
+}
+
+exports.receiveSupplierOrder = async (req, res) => {
+  res.status(501).json({ success: false, message: 'Tính năng đang được phát triển' })
+}
+
+exports.updateSupplierOrderStatus = async (req, res) => {
+  res.status(501).json({ success: false, message: 'Tính năng đang được phát triển' })
 }
 
 // Reviews
@@ -1263,7 +1711,7 @@ exports.getReviews = async (req, res) => {
     else if (filter === 'approved') where = 'pr.is_approved = 1'
 
     const [rows] = await db.query(
-      `SELECT pr.id, pr.rating, pr.content, pr.is_approved, pr.admin_reply, pr.replied_at,
+      `SELECT pr.id, pr.rating, pr.content, pr.is_approved, pr.is_active, pr.admin_reply, pr.replied_at,
               p.name as product_name,
               (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as product_image,
               u.id as user_id, u.name as user_name, u.avatar as user_avatar,
@@ -1281,7 +1729,7 @@ exports.getReviews = async (req, res) => {
     res.json({ reviews: rows })
   } catch (err) {
     console.error('[getReviews] Error:', err.code, err.message, err.sql)
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1290,7 +1738,7 @@ exports.approveReview = async (req, res) => {
     await db.query('UPDATE product_reviews SET is_approved = 1 WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1300,7 +1748,7 @@ exports.replyReview = async (req, res) => {
     await db.query('UPDATE product_reviews SET admin_reply = ?, replied_at = NOW() WHERE id = ?', [reply, req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1309,7 +1757,7 @@ exports.deleteReview = async (req, res) => {
     await db.query('DELETE FROM product_reviews WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1319,7 +1767,7 @@ exports.toggleReviewActive = async (req, res) => {
     await db.query('UPDATE product_reviews SET is_active = ? WHERE id = ?', [is_active, req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1329,7 +1777,7 @@ exports.getNews = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM news ORDER BY published_at DESC, created_at DESC')
     res.json({ posts: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1343,7 +1791,7 @@ exports.createNews = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM news WHERE id = ?', [result.insertId])
     res.json({ success: true, post: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1363,7 +1811,7 @@ exports.updateNews = async (req, res) => {
     const [rows] = await db.query('SELECT * FROM news WHERE id = ?', [req.params.id])
     res.json({ success: true, post: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1372,7 +1820,7 @@ exports.deleteNews = async (req, res) => {
     await db.query('DELETE FROM news WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1386,7 +1834,7 @@ exports.getContacts = async (req, res) => {
     const [rows] = await db.query(`SELECT * FROM contacts WHERE ${where} ORDER BY created_at DESC`, params)
     res.json({ contacts: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1431,9 +1879,9 @@ exports.getReports = async (req, res) => {
       FROM orders o WHERE ${orderWhere}
     `)
 
-    // Calculate profit: revenue - cost
+    // Calculate profit: revenue - cost (using product's cost_price since order_items has no cost_price)
     const [[costData]] = await db.query(`
-      SELECT COALESCE(SUM(COALESCE(oi.cost_price, p.cost_price) * oi.quantity), 0) as total_cost
+      SELECT COALESCE(SUM(p.cost_price * oi.quantity), 0) as total_cost
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
       JOIN products p ON oi.product_id = p.id
@@ -1523,7 +1971,7 @@ exports.getReports = async (req, res) => {
         p.id, p.name, p.sku,
         COALESCE(SUM(oi.quantity), 0) as sold,
         COALESCE(SUM(oi.total_price), 0) as revenue,
-        COALESCE(SUM(oi.cost_price * oi.quantity), 0) as cost,
+        COALESCE(SUM(p.cost_price * oi.quantity), 0) as cost,
         COUNT(DISTINCT oi.order_id) as order_count
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id AND o.status = 'delivered'
@@ -1553,7 +2001,7 @@ exports.getReports = async (req, res) => {
       SELECT
         COUNT(*) as total_products,
         SUM(stock) as total_stock,
-        SUM(CASE WHEN stock <= low_stock_threshold THEN 1 ELSE 0 END) as low_stock_count,
+        SUM(CASE WHEN stock <= 5 AND stock > 0 THEN 1 ELSE 0 END) as low_stock_count,
         SUM(CASE WHEN stock = 0 THEN 1 ELSE 0 END) as out_of_stock_count,
         SUM(COALESCE(cost_price, 0) * stock) as total_inventory_value
       FROM products WHERE is_active = TRUE
@@ -1627,7 +2075,7 @@ exports.getReports = async (req, res) => {
     })
   } catch (err) {
     console.error('Reports error:', err)
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1639,7 +2087,7 @@ exports.getSettings = async (req, res) => {
     for (const row of rows) settings[row.setting_key] = row.setting_value
     res.json({ settings })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
@@ -1653,52 +2101,265 @@ exports.updateSettings = async (req, res) => {
     }
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
   }
 }
 
-// ==================== SUPPLIERS ====================
+// ==================== IMPORTS / SUPPLIERS / WAREHOUSES ====================
+const IMPORT_STATUSES = ['draft', 'processing', 'partial_received', 'received', 'cancelled']
+const EDITABLE_IMPORT_STATUSES = ['draft', 'processing']
+const PAYMENT_STATUSES = ['unpaid', 'partial', 'paid']
+const PAYMENT_METHODS = ['cash', 'bank_transfer']
+
+const importOrderSelect = `
+  SELECT io.id, io.code, io.code as order_code, io.supplier_id, io.warehouse_id,
+         s.name as supplier_name, s.phone as supplier_phone, s.email as supplier_email, s.address as supplier_address,
+         w.name as warehouse_name,
+         DATE_FORMAT(io.order_date, '%Y-%m-%d') as order_date,
+         DATE_FORMAT(io.expected_date, '%Y-%m-%d') as expected_date,
+         io.total_quantity, io.subtotal, io.discount_amount, io.shipping_fee, io.total_amount,
+         io.paid_amount, io.payment_status, io.payment_method, io.status, io.note,
+         io.created_by, io.received_at, io.cancelled_at, io.created_at, io.updated_at
+  FROM import_orders io
+  LEFT JOIN suppliers s ON io.supplier_id = s.id
+  LEFT JOIN warehouses w ON io.warehouse_id = w.id
+`
+
+const importItemSelect = `
+  SELECT id, import_order_id, product_id, variant_id, sku, product_name, variant_name,
+         quantity_ordered, quantity_received, unit_cost, total_cost, note, created_at, updated_at
+  FROM import_order_items
+`
+
+const toNumber = (value, fallback = 0) => {
+  const number = Number(value)
+  return Number.isFinite(number) ? number : fallback
+}
+
+const toPositiveInt = (value) => {
+  const number = Number(value)
+  return Number.isInteger(number) && number > 0 ? number : 0
+}
+
+const inputError = (message) => {
+  const error = new Error(message)
+  error.statusCode = 400
+  error.userMessage = message
+  return error
+}
+
+const todayDateString = () => new Date().toISOString().slice(0, 10)
+
+const generateImportCode = () => {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  const suffix = `${Date.now().toString().slice(-5)}${Math.floor(Math.random() * 90 + 10)}`
+  return `IMP${y}${m}${d}${suffix}`
+}
+
+const derivePaymentStatus = (paidAmount, totalAmount) => {
+  if (paidAmount <= 0) return 'unpaid'
+  if (paidAmount >= totalAmount) return 'paid'
+  return 'partial'
+}
+
+const mapImportOrder = (order) => ({
+  ...order,
+  total_quantity: Number(order.total_quantity) || 0,
+  subtotal: Number(order.subtotal) || 0,
+  discount_amount: Number(order.discount_amount) || 0,
+  shipping_fee: Number(order.shipping_fee) || 0,
+  total_amount: Number(order.total_amount) || 0,
+  paid_amount: Number(order.paid_amount) || 0,
+})
+
+const getImportOrderPayload = async (id) => {
+  const [orders] = await db.query(`${importOrderSelect} WHERE io.id = ?`, [id])
+  if (!orders.length) return null
+  const [items] = await db.query(`${importItemSelect} WHERE import_order_id = ? ORDER BY id ASC`, [id])
+  return {
+    ...mapImportOrder(orders[0]),
+    items: items.map((item) => ({
+      ...item,
+      quantity_ordered: Number(item.quantity_ordered) || 0,
+      quantity_received: Number(item.quantity_received) || 0,
+      unit_cost: Number(item.unit_cost) || 0,
+      total_cost: Number(item.total_cost) || 0,
+    })),
+  }
+}
+
+const normalizeImportItems = async (conn, items) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw inputError('Vui lòng thêm ít nhất một sản phẩm nhập.')
+  }
+
+  const normalized = []
+  const seen = new Set()
+
+  for (const item of items) {
+    const productId = toPositiveInt(item.product_id)
+    const variantId = item.variant_id ? toPositiveInt(item.variant_id) : null
+    const quantity = toPositiveInt(item.quantity_ordered || item.quantity)
+    const unitCost = toNumber(item.unit_cost, -1)
+
+    if (!productId) throw inputError('Vui lòng chọn sản phẩm nhập.')
+    if (!quantity) throw inputError('Số lượng nhập phải lớn hơn 0.')
+    if (unitCost < 0) throw inputError('Đơn giá nhập không hợp lệ.')
+
+    const duplicateKey = `${productId}:${variantId || 'base'}`
+    if (seen.has(duplicateKey)) {
+      throw inputError('Sản phẩm không được bị trùng dòng nếu cùng sản phẩm và biến thể.')
+    }
+    seen.add(duplicateKey)
+
+    const [products] = await conn.query(
+      `SELECT p.id, p.name, p.sku, p.cost_price
+       FROM products p
+       WHERE p.id = ? AND p.deleted_at IS NULL`,
+      [productId]
+    )
+    if (!products.length) throw inputError('Sản phẩm nhập không hợp lệ.')
+
+    let sku = item.sku || item.product_sku || products[0].sku || null
+    let variantName = item.variant_name || null
+
+    if (variantId) {
+      const [variants] = await conn.query(
+        `SELECT pv.id, pv.sku, s.name as size_name, c.name as color_name
+         FROM product_variants pv
+         LEFT JOIN sizes s ON pv.size_id = s.id
+         LEFT JOIN colors c ON pv.color_id = c.id
+         WHERE pv.id = ? AND pv.product_id = ?`,
+        [variantId, productId]
+      )
+      if (!variants.length) throw inputError('Biến thể sản phẩm không hợp lệ.')
+      sku = variants[0].sku || sku
+      variantName = variantName || [variants[0].size_name, variants[0].color_name].filter(Boolean).join(' / ') || null
+    }
+
+    normalized.push({
+      product_id: productId,
+      variant_id: variantId,
+      sku,
+      product_name: item.product_name || products[0].name,
+      variant_name: variantName,
+      quantity_ordered: quantity,
+      unit_cost: unitCost,
+      total_cost: quantity * unitCost,
+      note: item.note || null,
+    })
+  }
+
+  return normalized
+}
+
+const calculateImportTotals = (items, discountAmount, shippingFee) => {
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity_ordered, 0)
+  const subtotal = items.reduce((sum, item) => sum + item.total_cost, 0)
+  const discount = Math.max(0, toNumber(discountAmount))
+  const shipping = Math.max(0, toNumber(shippingFee))
+  const totalAmount = Math.max(0, subtotal - discount + shipping)
+  return { totalQuantity, subtotal, discount, shipping, totalAmount }
+}
+
+exports.getProductOptions = async (req, res) => {
+  try {
+    const [products] = await db.query(
+      `SELECT p.id, p.name, p.sku, p.cost_price, p.price, p.stock, c.name as category_name,
+              (SELECT url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order ASC LIMIT 1) as image
+       FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       WHERE p.deleted_at IS NULL AND p.is_active = 1
+       ORDER BY p.name ASC`
+    )
+    const [variants] = await db.query(
+      `SELECT pv.id, pv.product_id, pv.sku, pv.price, pv.stock, s.name as size_name, c.name as color_name
+       FROM product_variants pv
+       LEFT JOIN sizes s ON pv.size_id = s.id
+       LEFT JOIN colors c ON pv.color_id = c.id
+       WHERE pv.is_active = 1
+       ORDER BY pv.product_id ASC, s.sort_order ASC, c.sort_order ASC`
+    )
+
+    const variantsByProduct = variants.reduce((acc, variant) => {
+      if (!acc[variant.product_id]) acc[variant.product_id] = []
+      acc[variant.product_id].push({
+        ...variant,
+        name: [variant.size_name, variant.color_name].filter(Boolean).join(' / ') || variant.sku || `Biến thể #${variant.id}`,
+        price: Number(variant.price) || 0,
+        stock: Number(variant.stock) || 0,
+      })
+      return acc
+    }, {})
+
+    res.json({
+      success: true,
+      products: products.map((product) => ({
+        ...product,
+        cost_price: Number(product.cost_price) || 0,
+        price: Number(product.price) || 0,
+        stock: Number(product.stock) || 0,
+        variants: variantsByProduct[product.id] || [],
+      })),
+    })
+  } catch (err) {
+    console.error('getProductOptions error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách sản phẩm.' })
+  }
+}
+
 exports.getSuppliers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT * FROM suppliers WHERE is_active = 1 ORDER BY name ASC'
+      'SELECT id, code, name, phone, email, address, contact_person, is_active, created_at FROM suppliers WHERE is_active = 1 ORDER BY name ASC'
     )
-    res.json({ suppliers: rows })
+    res.json({ success: true, suppliers: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getSuppliers error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách nhà cung cấp.' })
   }
 }
 
 exports.createSupplier = async (req, res) => {
   try {
-    const { name, code, email, phone, address, tax_code, contact_person, bank_account, bank_name, debt_limit } = req.body
-    if (!name || !code) return res.status(400).json({ success: false, message: 'Tên và mã NCC là bắt buộc' })
-    const [existing] = await db.query('SELECT id FROM suppliers WHERE code = ?', [code])
-    if (existing.length) return res.status(400).json({ success: false, message: 'Mã NCC đã tồn tại' })
+    const { code, name, phone, email, address, contact_person, is_active } = req.body
+    if (!name || !String(name).trim()) return res.status(400).json({ success: false, message: 'Tên nhà cung cấp không được để trống.' })
+    const supplierCode = code || `SUP-${Date.now().toString().slice(-6)}`
     const [result] = await db.query(
-      `INSERT INTO suppliers (name, code, email, phone, address, tax_code, contact_person, bank_account, bank_name, debt_limit)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, code, email || null, phone || null, address || null, tax_code || null, contact_person || null, bank_account || null, bank_name || null, debt_limit || 0]
+      `INSERT INTO suppliers (code, name, phone, email, address, contact_person, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [supplierCode, name.trim(), phone || null, email || null, address || null, contact_person || null, is_active !== false]
     )
     const [rows] = await db.query('SELECT * FROM suppliers WHERE id = ?', [result.insertId])
-    res.status(201).json({ supplier: rows[0] })
+    res.status(201).json({ success: true, supplier: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('createSupplier error:', err)
+    res.status(500).json({ success: false, message: 'Không thể lưu nhà cung cấp.' })
   }
 }
 
 exports.updateSupplier = async (req, res) => {
   try {
-    const { name, email, phone, address, tax_code, contact_person, bank_account, bank_name, debt_limit, is_active } = req.body
-    await db.query(
-      `UPDATE suppliers SET name=?, email=?, phone=?, address=?, tax_code=?, contact_person=?, bank_account=?, bank_name=?, debt_limit=?, is_active=? WHERE id=?`,
-      [name, email||null, phone||null, address||null, tax_code||null, contact_person||null, bank_account||null, bank_name||null, debt_limit||0, is_active!==undefined ? (is_active?1:0) : 1, req.params.id]
-    )
+    const allowed = ['code', 'name', 'phone', 'email', 'address', 'contact_person', 'is_active']
+    const fields = []
+    const values = []
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        fields.push(`${key} = ?`)
+        values.push(req.body[key])
+      }
+    }
+    if (!fields.length) return res.status(400).json({ success: false, message: 'Không có gì để cập nhật.' })
+    values.push(req.params.id)
+    await db.query(`UPDATE suppliers SET ${fields.join(', ')} WHERE id = ?`, values)
     const [rows] = await db.query('SELECT * FROM suppliers WHERE id = ?', [req.params.id])
-    if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy NCC' })
-    res.json({ supplier: rows[0] })
+    res.json({ success: true, supplier: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updateSupplier error:', err)
+    res.status(500).json({ success: false, message: 'Không thể lưu nhà cung cấp.' })
   }
 }
 
@@ -1707,53 +2368,59 @@ exports.deleteSupplier = async (req, res) => {
     await db.query('UPDATE suppliers SET is_active = 0 WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('deleteSupplier error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa nhà cung cấp.' })
   }
 }
 
-// ==================== WAREHOUSES ====================
 exports.getWarehouses = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT * FROM warehouses WHERE is_active = 1 ORDER BY is_main DESC, name ASC'
+      'SELECT id, code, name, address, is_main, is_active, created_at FROM warehouses WHERE is_active = 1 ORDER BY is_main DESC, name ASC'
     )
-    res.json({ warehouses: rows })
+    res.json({ success: true, warehouses: rows })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getWarehouses error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách kho.' })
   }
 }
 
 exports.createWarehouse = async (req, res) => {
   try {
-    const { name, code, address, phone, is_main } = req.body
-    if (!name || !code) return res.status(400).json({ success: false, message: 'Tên và mã kho là bắt buộc' })
-    const [existing] = await db.query('SELECT id FROM warehouses WHERE code = ?', [code])
-    if (existing.length) return res.status(400).json({ success: false, message: 'Mã kho đã tồn tại' })
-    if (is_main) await db.query('UPDATE warehouses SET is_main = 0')
+    const { code, name, address, is_main, is_active } = req.body
+    if (!name || !String(name).trim()) return res.status(400).json({ success: false, message: 'Tên kho không được để trống.' })
+    const warehouseCode = code || `WH-${Date.now().toString().slice(-6)}`
     const [result] = await db.query(
-      'INSERT INTO warehouses (name, code, address, phone, is_main) VALUES (?, ?, ?, ?, ?)',
-      [name, code, address || null, phone || null, is_main ? 1 : 0]
+      'INSERT INTO warehouses (code, name, address, is_main, is_active) VALUES (?, ?, ?, ?, ?)',
+      [warehouseCode, name.trim(), address || null, Boolean(is_main), is_active !== false]
     )
     const [rows] = await db.query('SELECT * FROM warehouses WHERE id = ?', [result.insertId])
-    res.status(201).json({ warehouse: rows[0] })
+    res.status(201).json({ success: true, warehouse: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('createWarehouse error:', err)
+    res.status(500).json({ success: false, message: 'Không thể lưu kho.' })
   }
 }
 
 exports.updateWarehouse = async (req, res) => {
   try {
-    const { name, address, phone, is_main, is_active } = req.body
-    if (is_main) await db.query('UPDATE warehouses SET is_main = 0')
-    await db.query(
-      'UPDATE warehouses SET name=?, address=?, phone=?, is_main=?, is_active=? WHERE id=?',
-      [name, address||null, phone||null, is_main?1:0, is_active!==undefined ? (is_active?1:0) : 1, req.params.id]
-    )
+    const allowed = ['code', 'name', 'address', 'is_main', 'is_active']
+    const fields = []
+    const values = []
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        fields.push(`${key} = ?`)
+        values.push(req.body[key])
+      }
+    }
+    if (!fields.length) return res.status(400).json({ success: false, message: 'Không có gì để cập nhật.' })
+    values.push(req.params.id)
+    await db.query(`UPDATE warehouses SET ${fields.join(', ')} WHERE id = ?`, values)
     const [rows] = await db.query('SELECT * FROM warehouses WHERE id = ?', [req.params.id])
-    if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy kho' })
-    res.json({ warehouse: rows[0] })
+    res.json({ success: true, warehouse: rows[0] })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('updateWarehouse error:', err)
+    res.status(500).json({ success: false, message: 'Không thể lưu kho.' })
   }
 }
 
@@ -1762,223 +2429,1069 @@ exports.deleteWarehouse = async (req, res) => {
     await db.query('UPDATE warehouses SET is_active = 0 WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('deleteWarehouse error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa kho.' })
   }
 }
 
-// ==================== SUPPLIER ORDERS ====================
-exports.createSupplierOrder = async (req, res) => {
+exports.getImports = async (req, res) => {
   try {
-    const { supplier_id, warehouse_id, order_date, expected_date, note, items } = req.body
-    if (!supplier_id) return res.status(400).json({ success: false, message: 'Chọn nhà cung cấp' })
-    if (!items || items.length === 0) return res.status(400).json({ success: false, message: 'Cần thêm ít nhất 1 sản phẩm' })
+    const { search, status, supplier_id } = req.query
+    const where = []
+    const params = []
 
-    const orderCode = 'PO-' + Date.now()
-    const [result] = await db.query(
-      `INSERT INTO supplier_orders (order_code, supplier_id, warehouse_id, order_date, expected_date, note, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'draft')`,
-      [orderCode, supplier_id, warehouse_id || null, order_date || null, expected_date || null, note || null]
+    if (status && IMPORT_STATUSES.includes(status)) {
+      where.push('io.status = ?')
+      params.push(status)
+    }
+    if (supplier_id) {
+      where.push('io.supplier_id = ?')
+      params.push(supplier_id)
+    }
+    if (search && String(search).trim()) {
+      const q = `%${String(search).trim().toLowerCase()}%`
+      where.push('(LOWER(io.code) LIKE ? OR LOWER(s.name) LIKE ?)')
+      params.push(q, q)
+    }
+
+    const [rows] = await db.query(
+      `${importOrderSelect}
+       ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
+       ORDER BY io.created_at DESC`,
+      params
+    )
+    res.json({ success: true, imports: rows.map(mapImportOrder), orders: rows.map(mapImportOrder) })
+  } catch (err) {
+    console.error('getImports error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách đơn nhập hàng.' })
+  }
+}
+
+exports.getImportDetail = async (req, res) => {
+  try {
+    const order = await getImportOrderPayload(req.params.id)
+    if (!order) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nhập hàng.' })
+    res.json({ success: true, import: order, order })
+  } catch (err) {
+    console.error('getImportDetail error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải chi tiết đơn nhập hàng.' })
+  }
+}
+
+exports.createImport = async (req, res) => {
+  const conn = await db.getConnection()
+  try {
+    const supplierId = toPositiveInt(req.body.supplier_id)
+    const warehouseId = toPositiveInt(req.body.warehouse_id)
+    if (!supplierId) throw inputError('Vui lòng chọn nhà cung cấp.')
+    if (!warehouseId) throw inputError('Vui lòng chọn kho nhận.')
+
+    const status = IMPORT_STATUSES.includes(req.body.status) ? req.body.status : 'processing'
+    if (!['draft', 'processing'].includes(status)) throw inputError('Trạng thái đơn nhập không hợp lệ.')
+
+    await conn.beginTransaction()
+    const items = await normalizeImportItems(conn, req.body.items)
+    const totals = calculateImportTotals(items, req.body.discount_amount, req.body.shipping_fee)
+    const paidAmount = Math.max(0, toNumber(req.body.paid_amount))
+    if (paidAmount > totals.totalAmount) throw inputError('Số tiền đã thanh toán không được lớn hơn tổng tiền.')
+    const paymentMethod = PAYMENT_METHODS.includes(req.body.payment_method) ? req.body.payment_method : 'cash'
+    const paymentStatus = PAYMENT_STATUSES.includes(req.body.payment_status)
+      ? derivePaymentStatus(paidAmount, totals.totalAmount)
+      : derivePaymentStatus(paidAmount, totals.totalAmount)
+
+    const [result] = await conn.query(
+      `INSERT INTO import_orders
+        (code, supplier_id, warehouse_id, order_date, expected_date, total_quantity, subtotal,
+         discount_amount, shipping_fee, total_amount, paid_amount, payment_status, payment_method,
+         status, note, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        generateImportCode(),
+        supplierId,
+        warehouseId,
+        req.body.order_date || todayDateString(),
+        req.body.expected_date || null,
+        totals.totalQuantity,
+        totals.subtotal,
+        totals.discount,
+        totals.shipping,
+        totals.totalAmount,
+        paidAmount,
+        paymentStatus,
+        paymentMethod,
+        status,
+        req.body.note || null,
+        req.user?.id || null,
+      ]
     )
 
-    let subtotal = 0
     for (const item of items) {
-      const total_cost = Number(item.quantity_ordered || 0) * Number(item.unit_cost || 0)
-      subtotal += total_cost
-      await db.query(
-        `INSERT INTO supplier_order_items (supplier_order_id, product_id, variant_id, size_id, color_id,
-         product_name, product_sku, variant_name, quantity_ordered, quantity_remaining, unit_cost, total_cost)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [orderId, item.product_id || null, item.variant_id || null, item.size_id || null, item.color_id || null,
-         item.product_name, item.product_sku || null, item.variant_name || null,
-         item.quantity_ordered || 0, item.quantity_ordered || 0, item.unit_cost || 0, total_cost]
+      await conn.query(
+        `INSERT INTO import_order_items
+          (import_order_id, product_id, variant_id, sku, product_name, variant_name,
+           quantity_ordered, quantity_received, unit_cost, total_cost, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+        [
+          result.insertId,
+          item.product_id,
+          item.variant_id,
+          item.sku,
+          item.product_name,
+          item.variant_name,
+          item.quantity_ordered,
+          item.unit_cost,
+          item.total_cost,
+          item.note,
+        ]
       )
     }
 
-    await db.query(
-      `UPDATE supplier_orders SET subtotal=?,
-       total_amount=(SELECT COALESCE(SUM(total_cost),0) FROM supplier_order_items WHERE supplier_order_id=?)
-       WHERE id=?`,
-      [subtotal, orderId, orderId]
-    )
-
-    const [rows] = await db.query(
-      `SELECT so.*, s.name as supplier_name, w.name as warehouse_name
-       FROM supplier_orders so LEFT JOIN suppliers s ON so.supplier_id=s.id LEFT JOIN warehouses w ON so.warehouse_id=w.id WHERE so.id=?`,
-      [orderId]
-    )
-    res.status(201).json({ order: rows[0] })
+    await conn.commit()
+    const order = await getImportOrderPayload(result.insertId)
+    res.status(201).json({ success: true, import: order, order })
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ success: false, message: err.message })
+    await conn.rollback()
+    console.error('createImport error:', err)
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.userMessage || 'Không thể tạo đơn nhập hàng. Vui lòng kiểm tra lại thông tin.',
+    })
+  } finally {
+    conn.release()
   }
 }
 
-exports.updateSupplierOrder = async (req, res) => {
+exports.updateImport = async (req, res) => {
+  const conn = await db.getConnection()
   try {
-    const { supplier_id, warehouse_id, order_date, expected_date, note, items, status } = req.body
-    const orderId = req.params.id
+    await conn.beginTransaction()
+    const [currentRows] = await conn.query('SELECT * FROM import_orders WHERE id = ? FOR UPDATE', [req.params.id])
+    if (!currentRows.length) throw inputError('Không tìm thấy đơn nhập hàng.')
+    const current = currentRows[0]
+    if (!EDITABLE_IMPORT_STATUSES.includes(current.status)) {
+      throw inputError('Chỉ có thể cập nhật đơn nháp hoặc đang xử lý.')
+    }
 
-    await db.query(
-      `UPDATE supplier_orders SET supplier_id=?, warehouse_id=?, order_date=?, expected_date=?, note=?, status=COALESCE(?, status) WHERE id=?`,
-      [supplier_id||null, warehouse_id||null, order_date||null, expected_date||null, note||null, status, orderId]
+    const [[receivedStats]] = await conn.query(
+      'SELECT COALESCE(SUM(quantity_received), 0) as received FROM import_order_items WHERE import_order_id = ?',
+      [req.params.id]
+    )
+    if (Number(receivedStats.received) > 0) throw inputError('Đơn đã nhận hàng, không thể cập nhật thông tin.')
+
+    const supplierId = req.body.supplier_id !== undefined ? toPositiveInt(req.body.supplier_id) : current.supplier_id
+    const warehouseId = req.body.warehouse_id !== undefined ? toPositiveInt(req.body.warehouse_id) : current.warehouse_id
+    if (!supplierId) throw inputError('Vui lòng chọn nhà cung cấp.')
+    if (!warehouseId) throw inputError('Vui lòng chọn kho nhận.')
+
+    let items = null
+    let subtotal = Number(current.subtotal) || 0
+    let totalQuantity = Number(current.total_quantity) || 0
+    if (req.body.items !== undefined) {
+      items = await normalizeImportItems(conn, req.body.items)
+      const itemTotals = calculateImportTotals(items, 0, 0)
+      subtotal = itemTotals.subtotal
+      totalQuantity = itemTotals.totalQuantity
+    }
+
+    const discount = Math.max(0, req.body.discount_amount !== undefined ? toNumber(req.body.discount_amount) : Number(current.discount_amount) || 0)
+    const shipping = Math.max(0, req.body.shipping_fee !== undefined ? toNumber(req.body.shipping_fee) : Number(current.shipping_fee) || 0)
+    const totalAmount = Math.max(0, subtotal - discount + shipping)
+    const paidAmount = Math.max(0, req.body.paid_amount !== undefined ? toNumber(req.body.paid_amount) : Number(current.paid_amount) || 0)
+    if (paidAmount > totalAmount) throw inputError('Số tiền đã thanh toán không được lớn hơn tổng tiền.')
+
+    const nextStatus = req.body.status && IMPORT_STATUSES.includes(req.body.status) ? req.body.status : current.status
+    if (!['draft', 'processing', 'cancelled'].includes(nextStatus)) throw inputError('Trạng thái đơn nhập không hợp lệ.')
+    const paymentMethod = PAYMENT_METHODS.includes(req.body.payment_method) ? req.body.payment_method : current.payment_method || 'cash'
+    const paymentStatus = derivePaymentStatus(paidAmount, totalAmount)
+
+    await conn.query(
+      `UPDATE import_orders
+       SET supplier_id = ?, warehouse_id = ?, order_date = ?, expected_date = ?, total_quantity = ?,
+           subtotal = ?, discount_amount = ?, shipping_fee = ?, total_amount = ?, paid_amount = ?,
+           payment_status = ?, payment_method = ?, status = ?, note = ?, cancelled_at = ?
+       WHERE id = ?`,
+      [
+        supplierId,
+        warehouseId,
+        req.body.order_date || current.order_date,
+        req.body.expected_date !== undefined ? req.body.expected_date || null : current.expected_date,
+        totalQuantity,
+        subtotal,
+        discount,
+        shipping,
+        totalAmount,
+        paidAmount,
+        paymentStatus,
+        paymentMethod,
+        nextStatus,
+        req.body.note !== undefined ? req.body.note || null : current.note,
+        nextStatus === 'cancelled' ? new Date() : current.cancelled_at,
+        req.params.id,
+      ]
     )
 
-    if (items && items.length > 0) {
-      await db.query('DELETE FROM supplier_order_items WHERE supplier_order_id = ?', [orderId])
-      let subtotal = 0
+    if (items) {
+      await conn.query('DELETE FROM import_order_items WHERE import_order_id = ?', [req.params.id])
       for (const item of items) {
-        const total_cost = Number(item.quantity_ordered || 0) * Number(item.unit_cost || 0)
-        subtotal += total_cost
-        await db.query(
-          `INSERT INTO supplier_order_items (supplier_order_id, product_id, variant_id, size_id, color_id,
-           product_name, product_sku, variant_name, quantity_ordered, quantity_remaining, unit_cost, total_cost)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [orderId, item.product_id || null, item.variant_id || null, item.size_id || null, item.color_id || null,
-           item.product_name, item.product_sku || null, item.variant_name || null,
-           item.quantity_ordered || 0, item.quantity_ordered || 0, item.unit_cost || 0, total_cost]
+        await conn.query(
+          `INSERT INTO import_order_items
+            (import_order_id, product_id, variant_id, sku, product_name, variant_name,
+             quantity_ordered, quantity_received, unit_cost, total_cost, note)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+          [
+            req.params.id,
+            item.product_id,
+            item.variant_id,
+            item.sku,
+            item.product_name,
+            item.variant_name,
+            item.quantity_ordered,
+            item.unit_cost,
+            item.total_cost,
+            item.note,
+          ]
         )
       }
-      await db.query(
-        `UPDATE supplier_orders SET subtotal=?,
-         total_amount=(SELECT COALESCE(SUM(total_cost),0) FROM supplier_order_items WHERE supplier_order_id=?)
-         WHERE id=?`,
-        [subtotal, orderId, orderId]
-      )
     }
 
-    const [rows] = await db.query(
-      `SELECT so.*, s.name as supplier_name, w.name as warehouse_name
-       FROM supplier_orders so LEFT JOIN suppliers s ON so.supplier_id=s.id LEFT JOIN warehouses w ON so.warehouse_id=w.id WHERE so.id=?`,
-      [orderId]
-    )
-    res.json({ order: rows[0] })
+    await conn.commit()
+    const order = await getImportOrderPayload(req.params.id)
+    res.json({ success: true, import: order, order })
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ success: false, message: err.message })
+    await conn.rollback()
+    console.error('updateImport error:', err)
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.userMessage || 'Không thể cập nhật đơn nhập hàng.',
+    })
+  } finally {
+    conn.release()
   }
 }
 
-exports.deleteSupplierOrder = async (req, res) => {
+exports.deleteImport = async (req, res) => {
   try {
-    await db.query('DELETE FROM supplier_order_items WHERE supplier_order_id = ?', [req.params.id])
-    await db.query('DELETE FROM supplier_orders WHERE id = ?', [req.params.id])
+    const [orders] = await db.query('SELECT id, status FROM import_orders WHERE id = ?', [req.params.id])
+    if (!orders.length) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nhập hàng.' })
+    if (orders[0].status === 'received') return res.status(400).json({ success: false, message: 'Đơn đã nhận đủ, không thể hủy.' })
+
+    const [[receivedStats]] = await db.query(
+      'SELECT COALESCE(SUM(quantity_received), 0) as received FROM import_order_items WHERE import_order_id = ?',
+      [req.params.id]
+    )
+    if (Number(receivedStats.received) > 0) {
+      return res.status(400).json({ success: false, message: 'Đơn đã nhận hàng, không thể hủy.' })
+    }
+
+    await db.query('UPDATE import_orders SET status = "cancelled", cancelled_at = NOW() WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('deleteImport error:', err)
+    res.status(500).json({ success: false, message: 'Không thể hủy đơn nhập hàng.' })
   }
 }
 
-exports.getSupplierOrderDetail = async (req, res) => {
+exports.receiveImport = async (req, res) => {
+  const conn = await db.getConnection()
   try {
-    const [orders] = await db.query(
-      `SELECT so.*, s.name as supplier_name, s.phone as supplier_phone, s.address as supplier_address,
-              w.name as warehouse_name
-       FROM supplier_orders so
-       LEFT JOIN suppliers s ON so.supplier_id = s.id
-       LEFT JOIN warehouses w ON so.warehouse_id = w.id
-       WHERE so.id = ?`,
-      [req.params.id]
-    )
-    if (!orders.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' })
-    const [items] = await db.query(
-      `SELECT soi.*, sz.name as size_name, cl.name as color_name
-       FROM supplier_order_items soi
-       LEFT JOIN sizes sz ON soi.size_id = sz.id
-       LEFT JOIN colors cl ON soi.color_id = cl.id
-       WHERE soi.supplier_order_id = ?`,
-      [req.params.id]
-    )
-    res.json({ order: { ...orders[0], items } })
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
-  }
-}
-
-exports.receiveSupplierOrder = async (req, res) => {
-  try {
-    const { items } = req.body
-    if (!items || items.length === 0) return res.status(400).json({ success: false, message: 'Cần nhập số lượng nhận' })
-
-    const orderId = req.params.id
-    const [orders] = await db.query('SELECT * FROM supplier_orders WHERE id = ?', [orderId])
-    if (!orders.length) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nhập hàng' })
+    await conn.beginTransaction()
+    const [orders] = await conn.query('SELECT * FROM import_orders WHERE id = ? FOR UPDATE', [req.params.id])
+    if (!orders.length) throw inputError('Không tìm thấy đơn nhập hàng.')
     const order = orders[0]
+    if (order.status === 'draft') throw inputError('Đơn nháp chưa thể nhận hàng.')
+    if (order.status === 'cancelled') throw inputError('Đơn đã hủy, không thể nhận hàng.')
+    if (order.status === 'received') throw inputError('Đơn đã nhận đủ, không thể nhận thêm.')
 
-    for (const rec of items) {
-      const [itemRows] = await db.query('SELECT * FROM supplier_order_items WHERE id = ? AND supplier_order_id = ?', [rec.item_id, orderId])
-      if (!itemRows.length) continue
-      const item = itemRows[0]
-      const qtyReceived = rec.quantity_received || 0
+    const receiveItems = Array.isArray(req.body.items) ? req.body.items : []
+    if (!receiveItems.length) throw inputError('Vui lòng nhập số lượng nhận.')
 
-      await db.query(
-        'UPDATE supplier_order_items SET quantity_received=?, quantity_remaining=? WHERE id=?',
-        [qtyReceived, Math.max(0, item.quantity_ordered - qtyReceived), rec.item_id]
-      )
+    const [items] = await conn.query('SELECT * FROM import_order_items WHERE import_order_id = ? FOR UPDATE', [req.params.id])
+    const itemMap = new Map(items.map((item) => [Number(item.id), item]))
+    let changed = 0
 
-      if (qtyReceived > 0) {
-        if (item.variant_id) {
-          await db.query('UPDATE product_variants SET stock = stock + ? WHERE id = ?', [qtyReceived, item.variant_id])
-        } else if (item.product_id) {
-          await db.query('UPDATE products SET stock = stock + ? WHERE id = ?', [qtyReceived, item.product_id])
-        }
-        await db.query(
-          `INSERT INTO stock_movements (product_id, variant_id, warehouse_id, movement_type, quantity,
-           unit_cost, reference_type, reference_id, supplier_id, note, created_by)
-           VALUES (?, ?, ?, 'import', ?, ?, 'supplier_order', ?, ?, ?, NULL)`,
-          [item.product_id || null, item.variant_id || null, order.warehouse_id || null,
-           qtyReceived, item.unit_cost || 0, orderId, order.supplier_id, `Nhận hàng PO ${order.order_code}`]
-        )
+    for (const receiveItem of receiveItems) {
+      const itemId = toPositiveInt(receiveItem.item_id || receiveItem.id)
+      const quantity = toPositiveInt(receiveItem.quantity_received || receiveItem.receive_quantity)
+      if (!itemId || !quantity) continue
+      const item = itemMap.get(itemId)
+      if (!item) throw inputError('Dòng sản phẩm nhận hàng không hợp lệ.')
+
+      const currentReceived = Number(item.quantity_received) || 0
+      const ordered = Number(item.quantity_ordered) || 0
+      if (currentReceived + quantity > ordered) {
+        throw inputError('Tổng số lượng đã nhận không được vượt quá số lượng đặt.')
       }
+
+      let beforeStock = 0
+      let afterStock = 0
+      if (item.variant_id) {
+        const [variantRows] = await conn.query('SELECT stock FROM product_variants WHERE id = ? FOR UPDATE', [item.variant_id])
+        if (!variantRows.length) throw inputError('Biến thể sản phẩm không hợp lệ.')
+        beforeStock = Number(variantRows[0].stock) || 0
+        afterStock = beforeStock + quantity
+        await conn.query('UPDATE product_variants SET stock = ? WHERE id = ?', [afterStock, item.variant_id])
+      } else {
+        const [productRows] = await conn.query('SELECT stock FROM products WHERE id = ? FOR UPDATE', [item.product_id])
+        if (!productRows.length) throw inputError('Sản phẩm nhận hàng không hợp lệ.')
+        beforeStock = Number(productRows[0].stock) || 0
+        afterStock = beforeStock + quantity
+        await conn.query('UPDATE products SET stock = ? WHERE id = ?', [afterStock, item.product_id])
+      }
+
+      await conn.query(
+        'UPDATE import_order_items SET quantity_received = quantity_received + ? WHERE id = ?',
+        [quantity, item.id]
+      )
+      await conn.query(
+        `INSERT INTO inventory_transactions
+          (product_id, variant_id, type, quantity, before_stock, after_stock, reference_type, reference_id, note)
+         VALUES (?, ?, 'import', ?, ?, ?, 'import_order', ?, ?)`,
+        [
+          item.product_id,
+          item.variant_id || null,
+          quantity,
+          beforeStock,
+          afterStock,
+          req.params.id,
+          `Nhận hàng từ đơn ${order.code}`,
+        ]
+      )
+      changed += quantity
     }
 
-    const [[{ subtotal, received_total }]] = await db.query(
-      `SELECT SUM(total_cost) as subtotal, SUM(quantity_received * unit_cost) as received_total
-       FROM supplier_order_items WHERE supplier_order_id = ?`,
-      [orderId]
+    if (!changed) throw inputError('Vui lòng nhập số lượng nhận.')
+
+    const [[totals]] = await conn.query(
+      `SELECT COALESCE(SUM(quantity_ordered), 0) as ordered,
+              COALESCE(SUM(quantity_received), 0) as received
+       FROM import_order_items WHERE import_order_id = ?`,
+      [req.params.id]
     )
-    const [[{ total_received_items }]] = await db.query(
-      'SELECT COUNT(*) as total_received_items FROM supplier_order_items WHERE supplier_order_id = ? AND quantity_remaining <= 0',
-      [orderId]
-    )
-    const [[{ total_items }]] = await db.query(
-      'SELECT COUNT(*) as total_items FROM supplier_order_items WHERE supplier_order_id = ?',
-      [orderId]
+    const newStatus = Number(totals.received) >= Number(totals.ordered) ? 'received' : 'partial_received'
+    await conn.query(
+      `UPDATE import_orders
+       SET status = ?, received_at = CASE WHEN ? = 'received' THEN NOW() ELSE received_at END
+       WHERE id = ?`,
+      [newStatus, newStatus, req.params.id]
     )
 
-    let newOrderStatus = order.status
-    if (total_received_items >= total_items) newOrderStatus = 'received'
-    else if (Number(received_total) > 0) newOrderStatus = 'partial_received'
-
-    await db.query(
-      `UPDATE supplier_orders SET paid_amount=?,
-       received_date=CASE WHEN ?='received' THEN CURDATE() ELSE received_date END, status=? WHERE id=?`,
-      [received_total || 0, newOrderStatus, newOrderStatus, orderId]
-    )
-
-    const [rows] = await db.query(
-      `SELECT so.*, s.name as supplier_name, w.name as warehouse_name
-       FROM supplier_orders so LEFT JOIN suppliers s ON so.supplier_id=s.id LEFT JOIN warehouses w ON so.warehouse_id=w.id WHERE so.id=?`,
-      [orderId]
-    )
-    res.json({ order: rows[0] })
+    await conn.commit()
+    const updated = await getImportOrderPayload(req.params.id)
+    res.json({ success: true, import: updated, order: updated })
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ success: false, message: err.message })
+    await conn.rollback()
+    console.error('receiveImport error:', err)
+    res.status(err.statusCode || 500).json({
+      success: false,
+      message: err.userMessage || 'Không thể nhận hàng. Vui lòng thử lại.',
+    })
+  } finally {
+    conn.release()
   }
 }
 
+exports.getSupplierOrders = exports.getImports
+exports.createSupplierOrder = exports.createImport
+exports.updateSupplierOrder = exports.updateImport
+exports.deleteSupplierOrder = exports.deleteImport
+exports.getSupplierOrderDetail = exports.getImportDetail
+exports.receiveSupplierOrder = exports.receiveImport
 exports.updateSupplierOrderStatus = async (req, res) => {
+  req.body = { ...(req.body || {}), status: req.body?.status }
+  return exports.updateImport(req, res)
+}
+
+// ==================== ADMIN BLOG / REVIEWS / CONTACTS / REPORTS / SETTINGS ====================
+const adminBool = (value) => value === true || value === 1 || value === '1' || value === 'true'
+const adminNumber = (value, fallback = 0) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+const adminDateOnly = (date) => {
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return new Date().toISOString().slice(0, 10)
+  return d.toISOString().slice(0, 10)
+}
+
+const adminSlugify = (value) => String(value || '')
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .replace(/Đ/g, 'D')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '')
+
+const blogSelect = `
+  SELECT id, title, slug, summary, content, thumbnail, thumbnail as image_url,
+         category, view_count, is_featured, is_published, published_at, created_at, updated_at
+  FROM news
+`
+
+const normalizeBlogRow = (row) => row ? ({
+  ...row,
+  is_featured: adminBool(row.is_featured),
+  is_published: adminBool(row.is_published),
+  status: adminBool(row.is_published) ? 'visible' : 'hidden',
+}) : null
+
+exports.getBlogs = async (req, res) => {
   try {
-    const { status } = req.body
-    const [result] = await db.query('UPDATE supplier_orders SET status = ? WHERE id = ?', [status, req.params.id])
-    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Không tìm thấy đơn nhập hàng' })
-    const [rows] = await db.query(
-      `SELECT so.*, s.name as supplier_name, w.name as warehouse_name
-       FROM supplier_orders so LEFT JOIN suppliers s ON so.supplier_id=s.id LEFT JOIN warehouses w ON so.warehouse_id=w.id WHERE so.id=?`,
-      [req.params.id]
-    )
-    res.json({ order: rows[0] })
+    const { search = '' } = req.query
+    const params = []
+    let where = 'deleted_at IS NULL'
+    if (search.trim()) {
+      where += ' AND (title LIKE ? OR slug LIKE ? OR summary LIKE ?)'
+      const like = `%${search.trim()}%`
+      params.push(like, like, like)
+    }
+    const [rows] = await db.query(`${blogSelect} WHERE ${where} ORDER BY COALESCE(published_at, created_at) DESC`, params)
+    const blogs = rows.map(normalizeBlogRow)
+    res.json({ success: true, blogs, posts: blogs })
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message })
+    console.error('getBlogs error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách bài viết.' })
+  }
+}
+
+exports.getBlogById = async (req, res) => {
+  try {
+    const [rows] = await db.query(`${blogSelect} WHERE id = ? AND deleted_at IS NULL`, [req.params.id])
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' })
+    const blog = normalizeBlogRow(rows[0])
+    res.json({ success: true, blog, post: blog })
+  } catch (err) {
+    console.error('getBlogById error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải chi tiết bài viết.' })
+  }
+}
+
+const collectBlogPayload = (body = {}, partial = false) => {
+  const title = body.title !== undefined ? String(body.title || '').trim() : undefined
+  const slugSource = body.slug !== undefined ? body.slug : title
+  const payload = {}
+
+  if (title !== undefined) payload.title = title
+  if (slugSource !== undefined) payload.slug = adminSlugify(slugSource)
+  if (body.summary !== undefined) payload.summary = body.summary || null
+  if (body.content !== undefined) payload.content = body.content || null
+  if (
+    body.thumbnail !== undefined
+    || body.image_url !== undefined
+    || body.thumbnail_url !== undefined
+    || body.cover_image !== undefined
+    || body.image !== undefined
+  ) {
+    const imageValue = body.thumbnail ?? body.image_url ?? body.thumbnail_url ?? body.cover_image ?? body.image
+    payload.thumbnail = String(imageValue || '').trim() || null
+  }
+  if (body.category !== undefined) payload.category = body.category || null
+  if (body.is_featured !== undefined) payload.is_featured = adminBool(body.is_featured) ? 1 : 0
+  if (body.is_published !== undefined) payload.is_published = adminBool(body.is_published) ? 1 : 0
+  if (body.status !== undefined) payload.is_published = body.status === 'visible' || body.status === 'published' ? 1 : 0
+  if (body.published_at !== undefined) payload.published_at = body.published_at || null
+
+  if (!partial && !payload.title) throw inputError('Tiêu đề bài viết không được để trống.')
+  if (!partial && !payload.slug) payload.slug = adminSlugify(payload.title)
+  if (payload.is_published === 1 && !payload.published_at) payload.published_at = new Date()
+  return payload
+}
+
+exports.createBlog = async (req, res) => {
+  try {
+    const payload = collectBlogPayload(req.body)
+    const fields = Object.keys(payload)
+    const placeholders = fields.map(() => '?').join(', ')
+    const [result] = await db.query(
+      `INSERT INTO news (${fields.join(', ')}, author_id, author_name, created_at)
+       VALUES (${placeholders}, ?, ?, NOW())`,
+      [...fields.map((field) => payload[field]), req.user?.id || null, req.user?.name || null]
+    )
+    const [rows] = await db.query(`${blogSelect} WHERE id = ?`, [result.insertId])
+    const blog = normalizeBlogRow(rows[0])
+    res.status(201).json({ success: true, blog, post: blog })
+  } catch (err) {
+    console.error('createBlog error:', err)
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Slug bài viết đã tồn tại.' })
+    }
+    res.status(err.statusCode || 500).json({ success: false, message: err.userMessage || 'Không thể lưu bài viết.' })
+  }
+}
+
+exports.updateBlog = async (req, res) => {
+  try {
+    const [existing] = await db.query('SELECT id FROM news WHERE id = ? AND deleted_at IS NULL', [req.params.id])
+    if (!existing.length) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' })
+
+    const payload = collectBlogPayload(req.body, true)
+    const fields = Object.keys(payload)
+    if (!fields.length) return res.status(400).json({ success: false, message: 'Không có gì để cập nhật.' })
+
+    await db.query(
+      `UPDATE news SET ${fields.map((field) => `${field} = ?`).join(', ')}, updated_at = NOW() WHERE id = ?`,
+      [...fields.map((field) => payload[field]), req.params.id]
+    )
+    const [rows] = await db.query(`${blogSelect} WHERE id = ?`, [req.params.id])
+    const blog = normalizeBlogRow(rows[0])
+    res.json({ success: true, blog, post: blog })
+  } catch (err) {
+    console.error('updateBlog error:', err)
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, message: 'Slug bài viết đã tồn tại.' })
+    }
+    res.status(err.statusCode || 500).json({ success: false, message: err.userMessage || 'Không thể lưu bài viết.' })
+  }
+}
+
+exports.deleteBlog = async (req, res) => {
+  try {
+    const [result] = await db.query('UPDATE news SET deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL', [req.params.id])
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('deleteBlog error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa bài viết.' })
+  }
+}
+
+exports.getNews = exports.getBlogs
+exports.createNews = exports.createBlog
+exports.updateNews = exports.updateBlog
+exports.deleteNews = exports.deleteBlog
+
+const reviewSelect = `
+  SELECT pr.id, pr.product_id, pr.user_id, pr.order_id, pr.rating, pr.title, pr.content,
+         pr.images, pr.is_verified_purchase, pr.is_approved, pr.is_active,
+         CASE
+           WHEN COALESCE(pr.is_active, 1) = 0 THEN 'hidden'
+           WHEN COALESCE(pr.is_approved, 0) = 1 THEN 'approved'
+           ELSE 'pending'
+         END as status,
+         pr.admin_reply, pr.replied_at, pr.helpful_count, pr.created_at, pr.updated_at,
+         p.name as product_name, p.sku as product_sku,
+         (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as product_image,
+         u.id as user_id, u.name as user_name, u.name as customer_name, u.email as user_email, u.avatar as user_avatar
+  FROM product_reviews pr
+  LEFT JOIN products p ON pr.product_id = p.id
+  LEFT JOIN users u ON pr.user_id = u.id
+`
+
+const normalizeReviewRow = (row) => row ? ({
+  ...row,
+  rating: Number(row.rating) || 0,
+  is_approved: adminBool(row.is_approved),
+  is_active: adminBool(row.is_active),
+  is_verified_purchase: adminBool(row.is_verified_purchase),
+}) : null
+
+const buildReviewWhere = (query = {}) => {
+  const params = []
+  const clauses = ['1=1']
+  const status = query.status || query.filter
+  if (status === 'pending') clauses.push('COALESCE(pr.is_approved, 0) = 0 AND COALESCE(pr.is_active, 1) = 1')
+  if (status === 'approved') clauses.push('COALESCE(pr.is_approved, 0) = 1 AND COALESCE(pr.is_active, 1) = 1')
+  if (status === 'hidden') clauses.push('COALESCE(pr.is_active, 1) = 0')
+  if (query.rating && query.rating !== 'all') {
+    clauses.push('pr.rating = ?')
+    params.push(Number(query.rating))
+  }
+  if (query.search && query.search.trim()) {
+    clauses.push('(u.name LIKE ? OR p.name LIKE ? OR pr.content LIKE ?)')
+    const like = `%${query.search.trim()}%`
+    params.push(like, like, like)
+  }
+  return { where: clauses.join(' AND '), params }
+}
+
+exports.getReviews = async (req, res) => {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1)
+    const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100)
+    const offset = (page - 1) * limit
+    const { where, params } = buildReviewWhere(req.query)
+    const [[countRow]] = await db.query(`SELECT COUNT(*) as total FROM product_reviews pr LEFT JOIN products p ON pr.product_id = p.id LEFT JOIN users u ON pr.user_id = u.id WHERE ${where}`, params)
+    const [rows] = await db.query(`${reviewSelect} WHERE ${where} ORDER BY pr.created_at DESC LIMIT ? OFFSET ?`, [...params, limit, offset])
+    const total = Number(countRow.total) || 0
+    res.json({
+      success: true,
+      reviews: rows.map(normalizeReviewRow),
+      total,
+      totalPages: Math.max(Math.ceil(total / limit), 1),
+      page,
+    })
+  } catch (err) {
+    console.error('getReviews error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách đánh giá.' })
+  }
+}
+
+exports.getReviewById = async (req, res) => {
+  try {
+    const [rows] = await db.query(`${reviewSelect} WHERE pr.id = ?`, [req.params.id])
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy đánh giá.' })
+    const review = normalizeReviewRow(rows[0])
+    res.json({ success: true, review })
+  } catch (err) {
+    console.error('getReviewById error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải chi tiết đánh giá.' })
+  }
+}
+
+exports.updateReviewStatus = async (req, res) => {
+  try {
+    const { status } = req.body || {}
+    if (!['pending', 'approved', 'hidden'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái đánh giá không hợp lệ.' })
+    }
+    const next = {
+      pending: { is_approved: 0, is_active: 1 },
+      approved: { is_approved: 1, is_active: 1 },
+      hidden: { is_approved: 0, is_active: 0 },
+    }[status]
+    const [result] = await db.query('UPDATE product_reviews SET is_approved = ?, is_active = ? WHERE id = ?', [next.is_approved, next.is_active, req.params.id])
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Không tìm thấy đánh giá.' })
+    const [rows] = await db.query(`${reviewSelect} WHERE pr.id = ?`, [req.params.id])
+    res.json({ success: true, review: normalizeReviewRow(rows[0]) })
+  } catch (err) {
+    console.error('updateReviewStatus error:', err)
+    res.status(500).json({ success: false, message: 'Không thể cập nhật trạng thái đánh giá.' })
+  }
+}
+
+exports.approveReview = async (req, res) => {
+  req.body = { ...(req.body || {}), status: 'approved' }
+  return exports.updateReviewStatus(req, res)
+}
+
+exports.toggleReviewActive = async (req, res) => {
+  req.body = { ...(req.body || {}), status: adminBool(req.body?.is_active) ? 'pending' : 'hidden' }
+  return exports.updateReviewStatus(req, res)
+}
+
+exports.deleteReview = async (req, res) => {
+  try {
+    const [result] = await db.query('DELETE FROM product_reviews WHERE id = ?', [req.params.id])
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Không tìm thấy đánh giá.' })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('deleteReview error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa đánh giá.' })
+  }
+}
+
+const contactSelect = `
+  SELECT c.id, c.name, c.email, c.phone, c.subject, c.message,
+         c.status as raw_status,
+         CASE WHEN c.status IN ('replied', 'closed') OR COALESCE(c.is_replied, 0) = 1 THEN 'processed' ELSE 'pending' END as status,
+         c.admin_reply, c.replied_at, c.created_at, c.updated_at
+  FROM contacts c
+`
+
+const buildContactWhere = (query = {}) => {
+  const params = []
+  const clauses = ['1=1']
+  const status = query.status || query.filter
+  if (status === 'pending') clauses.push("c.status = 'new' AND COALESCE(c.is_replied, 0) = 0")
+  if (status === 'processed') clauses.push("(c.status IN ('replied', 'closed') OR COALESCE(c.is_replied, 0) = 1)")
+  if (query.search && query.search.trim()) {
+    clauses.push('(c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR c.subject LIKE ? OR c.message LIKE ?)')
+    const like = `%${query.search.trim()}%`
+    params.push(like, like, like, like, like)
+  }
+  return { where: clauses.join(' AND '), params }
+}
+
+exports.getContacts = async (req, res) => {
+  try {
+    const { where, params } = buildContactWhere(req.query)
+    const [rows] = await db.query(`${contactSelect} WHERE ${where} ORDER BY c.created_at DESC`, params)
+    res.json({ success: true, contacts: rows })
+  } catch (err) {
+    console.error('getContacts error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải danh sách liên hệ.' })
+  }
+}
+
+exports.getContactById = async (req, res) => {
+  try {
+    const [rows] = await db.query(`${contactSelect} WHERE c.id = ?`, [req.params.id])
+    if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy liên hệ.' })
+    res.json({ success: true, contact: rows[0] })
+  } catch (err) {
+    console.error('getContactById error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải chi tiết liên hệ.' })
+  }
+}
+
+exports.updateContactStatus = async (req, res) => {
+  try {
+    const { status } = req.body || {}
+    if (!['pending', 'processed'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Trạng thái liên hệ không hợp lệ.' })
+    }
+    const nextStatus = status === 'processed' ? 'closed' : 'new'
+    const [result] = await db.query(
+      'UPDATE contacts SET status = ?, is_replied = ? WHERE id = ?',
+      [nextStatus, status === 'processed' ? 1 : 0, req.params.id]
+    )
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Không tìm thấy liên hệ.' })
+    const [rows] = await db.query(`${contactSelect} WHERE c.id = ?`, [req.params.id])
+    res.json({ success: true, contact: rows[0] })
+  } catch (err) {
+    console.error('updateContactStatus error:', err)
+    res.status(500).json({ success: false, message: 'Không thể cập nhật trạng thái liên hệ.' })
+  }
+}
+
+exports.deleteContact = async (req, res) => {
+  try {
+    const [result] = await db.query('DELETE FROM contacts WHERE id = ?', [req.params.id])
+    if (!result.affectedRows) return res.status(404).json({ success: false, message: 'Không tìm thấy liên hệ.' })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('deleteContact error:', err)
+    res.status(500).json({ success: false, message: 'Không thể xóa liên hệ.' })
+  }
+}
+
+const reportRangeFromQuery = (query = {}) => {
+  const today = new Date()
+  const end = adminDateOnly(query.end_date || query.date_to || today)
+  let start
+  switch (query.period) {
+    case 'today':
+      start = adminDateOnly(today)
+      break
+    case '7days': {
+      const d = new Date()
+      d.setDate(d.getDate() - 6)
+      start = adminDateOnly(d)
+      break
+    }
+    case 'month': {
+      const d = new Date()
+      d.setDate(1)
+      start = adminDateOnly(d)
+      break
+    }
+    case 'custom':
+      start = adminDateOnly(query.start_date || query.date_from || today)
+      break
+    case '30days':
+    default: {
+      const d = new Date()
+      d.setDate(d.getDate() - 29)
+      start = adminDateOnly(d)
+      break
+    }
+  }
+  return { start, end }
+}
+
+const reportWhere = (alias, range) => ({
+  clause: `${alias}.created_at >= ? AND ${alias}.created_at <= ?`,
+  params: [`${range.start} 00:00:00`, `${range.end} 23:59:59`],
+})
+
+const fetchReportsRevenueData = async (query = {}) => {
+  const range = reportRangeFromQuery(query)
+  const current = reportWhere('o', range)
+  const todayRange = { start: adminDateOnly(new Date()), end: adminDateOnly(new Date()) }
+  const todayWhere = reportWhere('o', todayRange)
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  const monthWhere = reportWhere('o', { start: adminDateOnly(monthStart), end: adminDateOnly(new Date()) })
+
+  const [[rangeStats]] = await db.query(`
+    SELECT COUNT(*) as total_orders,
+           COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as total_revenue,
+           COALESCE(AVG(CASE WHEN o.status = 'delivered' THEN o.total_price END), 0) as avg_order_value
+    FROM orders o WHERE ${current.clause}
+  `, current.params)
+  const [[todayStats]] = await db.query(`SELECT COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as revenue FROM orders o WHERE ${todayWhere.clause}`, todayWhere.params)
+  const [[monthStats]] = await db.query(`SELECT COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as revenue FROM orders o WHERE ${monthWhere.clause}`, monthWhere.params)
+  const [dailyRevenue] = await db.query(`
+    SELECT DATE(o.created_at) as date,
+           COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as revenue,
+           COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as orders
+    FROM orders o
+    WHERE ${current.clause}
+    GROUP BY DATE(o.created_at)
+    ORDER BY date ASC
+  `, current.params)
+
+  return {
+    range,
+    todayRevenue: adminNumber(todayStats.revenue),
+    monthRevenue: adminNumber(monthStats.revenue),
+    rangeRevenue: adminNumber(rangeStats.total_revenue),
+    totalOrders: adminNumber(rangeStats.total_orders),
+    avgOrderValue: adminNumber(rangeStats.avg_order_value),
+    dailyRevenue: dailyRevenue.map((item) => ({
+      date: item.date,
+      revenue: adminNumber(item.revenue),
+      orders: adminNumber(item.orders),
+    })),
+  }
+}
+
+const fetchReportsOrdersData = async (query = {}) => {
+  const range = reportRangeFromQuery(query)
+  const current = reportWhere('o', range)
+  const [[stats]] = await db.query(`
+    SELECT COUNT(*) as total,
+           SUM(CASE WHEN o.status = 'pending' THEN 1 ELSE 0 END) as pending,
+           SUM(CASE WHEN o.status = 'confirmed' THEN 1 ELSE 0 END) as confirmed,
+           SUM(CASE WHEN o.status = 'processing' THEN 1 ELSE 0 END) as processing,
+           SUM(CASE WHEN o.status = 'shipped' THEN 1 ELSE 0 END) as shipped,
+           SUM(CASE WHEN o.status = 'delivered' THEN 1 ELSE 0 END) as delivered,
+           SUM(CASE WHEN o.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+    FROM orders o WHERE ${current.clause}
+  `, current.params)
+  const [byStatus] = await db.query(`
+    SELECT o.status, COUNT(*) as count
+    FROM orders o WHERE ${current.clause}
+    GROUP BY o.status
+    ORDER BY count DESC
+  `, current.params)
+  return {
+    range,
+    total: adminNumber(stats.total),
+    pending: adminNumber(stats.pending),
+    confirmed: adminNumber(stats.confirmed),
+    processing: adminNumber(stats.processing),
+    shipped: adminNumber(stats.shipped),
+    delivered: adminNumber(stats.delivered),
+    cancelled: adminNumber(stats.cancelled),
+    byStatus: byStatus.map((row) => ({ status: row.status, count: adminNumber(row.count) })),
+  }
+}
+
+const fetchReportsProductsData = async (query = {}) => {
+  const range = reportRangeFromQuery(query)
+  const current = reportWhere('o', range)
+  const [[soldStats]] = await db.query(`
+    SELECT COALESCE(SUM(oi.quantity), 0) as total_sold_quantity
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id AND o.status = 'delivered'
+    WHERE ${current.clause}
+  `, current.params)
+  const [topProducts] = await db.query(`
+    SELECT p.id, p.name, p.sku, c.name as category_name,
+           COALESCE(SUM(oi.quantity), 0) as sold_quantity,
+           COALESCE(SUM(oi.total_price), 0) as revenue
+    FROM order_items oi
+    JOIN orders o ON oi.order_id = o.id AND o.status = 'delivered'
+    JOIN products p ON oi.product_id = p.id
+    LEFT JOIN categories c ON p.category_id = c.id
+    WHERE ${current.clause}
+    GROUP BY p.id, p.name, p.sku, c.name
+    ORDER BY sold_quantity DESC, revenue DESC
+    LIMIT 10
+  `, current.params)
+  const [lowStockProducts] = await db.query(`
+    SELECT id, name, sku, stock FROM products
+    WHERE deleted_at IS NULL AND stock > 0 AND stock <= 5
+    ORDER BY stock ASC, name ASC LIMIT 20
+  `)
+  const [outOfStockProducts] = await db.query(`
+    SELECT id, name, sku, stock FROM products
+    WHERE deleted_at IS NULL AND stock = 0
+    ORDER BY name ASC LIMIT 20
+  `)
+  return {
+    range,
+    totalSoldQuantity: adminNumber(soldStats.total_sold_quantity),
+    topProducts: topProducts.map((row) => ({
+      ...row,
+      sold_quantity: adminNumber(row.sold_quantity),
+      revenue: adminNumber(row.revenue),
+    })),
+    lowStockProducts,
+    outOfStockProducts,
+  }
+}
+
+const fetchReportsCustomersData = async (query = {}) => {
+  const range = reportRangeFromQuery(query)
+  const orderCurrent = reportWhere('o', range)
+  const userCurrent = reportWhere('u', range)
+  const [[totalStats]] = await db.query("SELECT COUNT(*) as total FROM users WHERE role = 'user'")
+  const [[newStats]] = await db.query(`SELECT COUNT(*) as total FROM users u WHERE u.role = 'user' AND ${userCurrent.clause}`, userCurrent.params)
+  const [topCustomers] = await db.query(`
+    SELECT u.id, u.name, u.email, u.phone,
+           COUNT(o.id) as order_count,
+           COALESCE(SUM(o.total_price), 0) as total_spent
+    FROM orders o
+    JOIN users u ON o.user_id = u.id
+    WHERE o.status = 'delivered' AND ${orderCurrent.clause}
+    GROUP BY u.id, u.name, u.email, u.phone
+    ORDER BY total_spent DESC
+    LIMIT 10
+  `, orderCurrent.params)
+  return {
+    range,
+    totalCustomers: adminNumber(totalStats.total),
+    newCustomers: adminNumber(newStats.total),
+    topCustomers: topCustomers.map((row) => ({
+      ...row,
+      order_count: adminNumber(row.order_count),
+      total_spent: adminNumber(row.total_spent),
+    })),
+  }
+}
+
+exports.getReportsRevenue = async (req, res) => {
+  try {
+    const revenue = await fetchReportsRevenueData(req.query)
+    res.json({ success: true, revenue })
+  } catch (err) {
+    console.error('getReportsRevenue error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải dữ liệu báo cáo.' })
+  }
+}
+
+exports.getReportsOrders = async (req, res) => {
+  try {
+    const orders = await fetchReportsOrdersData(req.query)
+    res.json({ success: true, orders })
+  } catch (err) {
+    console.error('getReportsOrders error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải dữ liệu báo cáo.' })
+  }
+}
+
+exports.getReportsProducts = async (req, res) => {
+  try {
+    const products = await fetchReportsProductsData(req.query)
+    res.json({ success: true, products })
+  } catch (err) {
+    console.error('getReportsProducts error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải dữ liệu báo cáo.' })
+  }
+}
+
+exports.getReportsCustomers = async (req, res) => {
+  try {
+    const customers = await fetchReportsCustomersData(req.query)
+    res.json({ success: true, customers })
+  } catch (err) {
+    console.error('getReportsCustomers error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải dữ liệu báo cáo.' })
+  }
+}
+
+exports.getReportsOverview = async (req, res) => {
+  try {
+    const [revenue, orders, products, customers] = await Promise.all([
+      fetchReportsRevenueData(req.query),
+      fetchReportsOrdersData(req.query),
+      fetchReportsProductsData(req.query),
+      fetchReportsCustomersData(req.query),
+    ])
+    res.json({ success: true, overview: { revenue, orders, products, customers } })
+  } catch (err) {
+    console.error('getReportsOverview error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải dữ liệu báo cáo.' })
+  }
+}
+
+exports.getReports = exports.getReportsOverview
+
+const defaultAdminSettings = {
+  site_name: 'CANIFA',
+  site_email: 'contact@canifa.com',
+  contact_phone: '1900 6061',
+  contact_address: '',
+  site_description: '',
+  logo_url: '',
+  favicon_url: '',
+  primary_color: '#d71920',
+  home_banner_url: '',
+  background_url: '',
+  free_shipping_threshold: '500000',
+  default_shipping_fee: '30000',
+  allow_cod: '1',
+  allow_vnpay: '1',
+  allow_momo: '0',
+  allow_bank_transfer: '1',
+  facebook_url: '',
+  instagram_url: '',
+  tiktok_url: '',
+  youtube_url: '',
+  return_policy: '',
+  shipping_policy: '',
+  privacy_policy: '',
+  terms_of_service: '',
+}
+
+const settingGroupByKey = (key) => {
+  if (['site_name', 'site_email', 'contact_phone', 'contact_address', 'site_description', 'logo_url', 'favicon_url'].includes(key)) return 'store'
+  if (['primary_color', 'home_banner_url', 'background_url'].includes(key)) return 'appearance'
+  if (['free_shipping_threshold', 'default_shipping_fee', 'allow_cod', 'allow_vnpay', 'allow_momo', 'allow_bank_transfer'].includes(key)) return 'sales'
+  if (['facebook_url', 'instagram_url', 'tiktok_url', 'youtube_url'].includes(key)) return 'social'
+  if (['return_policy', 'shipping_policy', 'privacy_policy', 'terms_of_service'].includes(key)) return 'policy'
+  return 'general'
+}
+
+const settingTypeByValue = (value) => {
+  if (typeof value === 'boolean') return 'boolean'
+  if (typeof value === 'number') return 'number'
+  if (value !== null && typeof value === 'object') return 'json'
+  return 'string'
+}
+
+const settingValueForStorage = (value) => {
+  if (typeof value === 'boolean') return value ? '1' : '0'
+  if (value !== null && typeof value === 'object') return JSON.stringify(value)
+  return value === undefined || value === null ? '' : String(value)
+}
+
+exports.getSettings = async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT setting_key, setting_value, group_name FROM settings')
+    const settings = { ...defaultAdminSettings }
+    const groups = {}
+    for (const row of rows) {
+      settings[row.setting_key] = row.setting_value
+      const group = row.group_name || settingGroupByKey(row.setting_key)
+      groups[group] = { ...(groups[group] || {}), [row.setting_key]: row.setting_value }
+    }
+    res.json({ success: true, settings, groups })
+  } catch (err) {
+    console.error('getSettings error:', err)
+    res.status(500).json({ success: false, message: 'Không thể tải cấu hình website.' })
+  }
+}
+
+exports.updateSettings = async (req, res) => {
+  try {
+    const settings = req.body?.settings && typeof req.body.settings === 'object' ? req.body.settings : req.body
+    if (!settings?.site_name || !String(settings.site_name).trim()) {
+      return res.status(400).json({ success: false, message: 'Tên cửa hàng không được để trống.' })
+    }
+    if (!settings?.site_email || !String(settings.site_email).trim()) {
+      return res.status(400).json({ success: false, message: 'Email liên hệ không được để trống.' })
+    }
+
+    for (const [key, value] of Object.entries(settings)) {
+      await db.query(
+        `INSERT INTO settings (setting_key, setting_value, setting_type, group_name)
+         VALUES (?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value),
+           setting_type = VALUES(setting_type),
+           group_name = VALUES(group_name)`,
+        [key, settingValueForStorage(value), settingTypeByValue(value), settingGroupByKey(key)]
+      )
+    }
+    const [rows] = await db.query('SELECT setting_key, setting_value FROM settings')
+    const nextSettings = { ...defaultAdminSettings }
+    for (const row of rows) nextSettings[row.setting_key] = row.setting_value
+    res.json({ success: true, settings: nextSettings })
+  } catch (err) {
+    console.error('updateSettings error:', err)
+    res.status(500).json({ success: false, message: 'Không thể lưu cài đặt. Vui lòng thử lại.' })
   }
 }

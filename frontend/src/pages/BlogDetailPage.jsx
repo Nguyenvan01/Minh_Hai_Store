@@ -5,6 +5,15 @@ import Footer from '../components/Footer'
 import Newsletter from '../components/Newsletter'
 import api from '../services/api'
 
+const getArticleImage = (article, fallback = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200') => (
+  article?.thumbnail
+  || article?.image_url
+  || article?.thumbnail_url
+  || article?.cover_image
+  || article?.image
+  || fallback
+)
+
 const BlogDetailPage = () => {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -85,7 +94,7 @@ const BlogDetailPage = () => {
         <div className="max-w-screen-2xl mx-auto px-6 md:px-12 mt-8">
           <div className="aspect-[21/9] rounded-2xl overflow-hidden bg-slate-100">
             <img
-              src={article.thumbnail || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1200'}
+              src={getArticleImage(article)}
               alt={article.title}
               className="w-full h-full object-cover"
             />
@@ -115,7 +124,7 @@ const BlogDetailPage = () => {
                 {article.author_name ? article.author_name.charAt(0).toUpperCase() : 'C'}
               </div>
               <div>
-                <p className="font-semibold text-sm text-[#131b2e]">{article.author_name || 'CLOTH Editorial'}</p>
+                <p className="font-semibold text-sm text-[#131b2e]">{article.author_name || 'Minh Hải Editorial'}</p>
                 <p className="text-xs text-slate-500">{formatDate(article.published_at)}</p>
               </div>
               <div className="ml-auto flex items-center gap-1 text-slate-400 text-sm">
@@ -193,7 +202,7 @@ const BlogDetailPage = () => {
                   >
                     <div className="aspect-[4/3] overflow-hidden">
                       <img
-                        src={item.thumbnail || 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400'}
+                        src={getArticleImage(item, 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400')}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />

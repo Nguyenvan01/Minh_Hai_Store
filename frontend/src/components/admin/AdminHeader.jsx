@@ -1,4 +1,3 @@
-import { Search, User } from 'lucide-react'
 import { useAdminAuth } from '../../contexts/AdminAuthContext'
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
@@ -48,31 +47,22 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
   return (
     <>
       <header
-        className={`fixed top-0 right-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-30 transition-all duration-300 ${
+        className={`fixed top-0 right-0 h-16 bg-white border-b border-[#e5e7eb] flex items-center justify-between px-6 z-30 transition-all duration-300 ${
           sidebarCollapsed ? 'left-[72px]' : 'left-[260px]'
         }`}
       >
         {/* Title */}
-        <div>
-          <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold text-[#2f3840]">{title}</h1>
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-2">
-          {/* Search */}
-          <Link
-            to="/admin"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
-          >
-            <Search size={18} />
-            <span className="text-sm hidden sm:block">Tìm kiếm...</span>
-          </Link>
-
+        <div className="ml-auto flex items-center gap-3">
           {/* Notifications Bell */}
           <div className="relative">
             <button
               onClick={handleBellClick}
-              className="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+              className="relative p-2 rounded-lg text-gray-600 hover:bg-[#fff1f2] hover:text-[#d71920] transition-colors"
             >
               <Icons.Bell size={20} />
               {totalNotif > 0 && (
@@ -87,13 +77,13 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
           <div className="relative" ref={userRef}>
             <button
               onClick={() => setShowUser(!showUser)}
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-[#fff1f2] transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-semibold">
-                {admin?.name?.charAt(0)?.toUpperCase() || 'A'}
+              <div className="w-8 h-8 rounded-full bg-[#d71920] flex items-center justify-center text-white text-sm font-semibold">
+                {(admin?.name || 'Quản trị viên').charAt(0).toUpperCase()}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{admin?.name || 'Admin'}</p>
+                <p className="text-sm font-semibold text-[#2f3840] leading-tight">{admin?.name || 'Quản trị viên'}</p>
                 <p className="text-xs text-gray-500 capitalize">{admin?.role || 'admin'}</p>
               </div>
             </button>
@@ -106,13 +96,13 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
                 <div className="py-1">
                   <button
                     onClick={() => { setShowUser(false); navigate('/admin') }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-[#fff1f2] hover:text-[#d71920]"
                   >
                     Tổng quan
                   </button>
                   <button
                     onClick={() => { setShowUser(false); navigate('/admin/settings') }}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-[#fff1f2] hover:text-[#d71920]"
                   >
                     Cài đặt
                   </button>
@@ -149,12 +139,12 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
               </div>
               <div className="flex items-center gap-3">
                 {loading && (
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin" />
                 )}
                 {newCount > 0 && (
                   <button
                     onClick={() => markAllRead()}
-                    className="text-xs text-blue-600 font-medium hover:underline"
+                    className="text-xs text-[#d71920] font-medium hover:underline"
                   >
                     Đánh dấu đã đọc
                   </button>
@@ -178,7 +168,7 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
             {/* Stats bar */}
             <div className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-3 text-xs overflow-x-auto whitespace-nowrap">
               {counts.newOrders > 0 && (
-                <span className="flex items-center gap-1 text-blue-600 font-medium">
+                <span className="flex items-center gap-1 text-[#d71920] font-medium">
                   <Icons.ShoppingBag size={12} /> {counts.newOrders} đơn mới
                 </span>
               )}
@@ -218,15 +208,15 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
                 </div>
               ) : (
                 notifications.map(notif => {
-                  const colors = COLOR_MAP[notif.color] || COLOR_MAP.blue
+                  const colors = COLOR_MAP[notif.color] || COLOR_MAP.info
                   const IconName = ICON_MAP[notif.icon] || 'Bell'
                   const IconComp = Icons[IconName] || Icons.Bell
                   return (
                     <div
                       key={notif.id}
                       onClick={() => handleNotifClick(notif)}
-                      className={`flex items-start gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors ${
-                        notif.isNew ? 'bg-blue-50/30' : ''
+                      className={`flex items-start gap-3 px-4 py-3 hover:bg-[#fff1f2] cursor-pointer transition-colors ${
+                        notif.isNew ? 'bg-red-50/40' : ''
                       } ${notif.urgent ? 'bg-red-50/50' : ''}`}
                     >
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${colors.bg}`}>
@@ -247,7 +237,7 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
                         <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1.5" />
                       )}
                       {notif.isNew && !notif.urgent && (
-                        <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 mt-1.5" />
+                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1.5" />
                       )}
                     </div>
                   )
@@ -262,7 +252,7 @@ export default function AdminHeader({ title, sidebarCollapsed }) {
                 <Link
                   to="/admin/orders"
                   onClick={() => setShowPanel(false)}
-                  className="text-xs text-blue-600 font-medium hover:underline"
+                  className="text-xs text-[#d71920] font-medium hover:underline"
                 >
                   Xem tất cả đơn hàng
                 </Link>

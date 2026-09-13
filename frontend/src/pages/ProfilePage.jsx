@@ -1,477 +1,418 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Header from '../components/Header'
-import Footer from '../components/Footer'
+import AccountLayout from '../components/account/AccountLayout'
+import AccountPageHeader from '../components/account/AccountPageHeader'
+import ProfileSummary from '../components/account/ProfileSummary'
+import RecentOrders from '../components/account/RecentOrders'
+import RecentFavorites from '../components/account/RecentFavorites'
 import { useAuth } from '../contexts/AuthContext'
-import { formatPrice } from '../utils/formatPrice'
 import api from '../services/api'
-
-const NAV_ITEMS = [
-  { id: 'profile',    path: '/profile',    label: 'Hồ sơ cá nhân',      icon: 'person' },
-  { id: 'orders',     path: '/orders',      label: 'Đơn hàng của tôi',     icon: 'shopping_bag' },
-  { id: 'favorites',  path: '/favorites',   label: 'Danh sách yêu thích', icon: 'favorite' },
-]
-
-const STATUS_BADGE = {
-  pending:    { label: 'Chờ xác nhận',   bg: 'bg-[#eaedff]', text: 'text-[#4450b7]', dot: true },
-  confirmed:  { label: 'Đã xác nhận',     bg: 'bg-[#eaedff]', text: 'text-[#4450b7]', dot: true },
-  processing: { label: 'Đang xử lý',      bg: 'bg-[#eaedff]', text: 'text-[#6670cc]', dot: true },
-  shipped:    { label: 'Đang giao',        bg: 'bg-[#dae2fd]', text: 'text-[#3d55ae]', dot: true },
-  delivered:  { label: 'Đã giao',          bg: 'bg-[#f2f3ff]', text: 'text-[#454652]', dot: false },
-  cancelled:  { label: 'Đã hủy',            bg: 'bg-[#f2f3ff]', text: 'text-[#a5a6aa]', dot: false },
-  returned:   { label: 'Trả hàng',         bg: 'bg-[#f2f3ff]', text: 'text-[#a5a6aa]', dot: false },
-}
+import {
+  cleanText,
+  formatDate,
+  genderLabel,
+  joinClean,
+  memberLevelLabel,
+  toNumber,
+} from '../components/account/accountUtils'
 
 function FieldLabel({ children }) {
-  return (
-    <p className="text-[11px] font-medium text-[#454652] uppercase tracking-[0.08em] mb-1">
-      {children}
-    </p>
-  )
+  return <p className="text-xs text-[#7d8794] mb-1">{children}</p>
 }
 
 function FieldValue({ children }) {
+  const value = cleanText(children)
   return (
-    <p className="text-base font-medium text-[#131b2e] leading-snug">
-      {children || <span className="text-[#a5a6aa] italic">Chưa cập nhật</span>}
+    <p className="text-sm text-[#2f3840]">
+      {value || <span className="text-[#adbccd] italic">Chưa cập nhật</span>}
     </p>
   )
 }
 
-function InputField({ label, value, onChange, type = 'text', placeholder, required }) {
+function PasswordModal({ isOpen, onClose }) {
+  const [form, setForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  if (!isOpen) return null
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (form.newPassword.length < 6) {
+      setError('Mật khẩu mới phải có ít nhất 6 ký tự')
+      return
+    }
+    if (form.newPassword !== form.confirmPassword) {
+      setError('Mật khẩu xác nhận không khớp')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await api.put('/profile/change-password', {
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
+      })
+      if (res.success) {
+        onClose()
+        setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      } else {
+        setError(res.message || 'Không thể đổi mật khẩu')
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Không thể đổi mật khẩu')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div>
-      <FieldLabel>{label}{required && ' *'}</FieldLabel>
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        className="w-full bg-[#f2f3ff] px-4 py-3 rounded-lg text-[#131b2e] text-sm placeholder:text-[#a5a6aa] outline-none
-          focus:bg-white focus:ring-2 focus:ring-[#4450b7]/20 focus:ring-offset-0 transition-all duration-200"
-      />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button type="button" aria-label="Đóng" className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#e5e7eb]">
+          <h3 className="text-base font-semibold text-[#2f3840]">Đổi mật khẩu</h3>
+          <button type="button" onClick={onClose} className="text-[#7d8794] hover:text-[#2f3840]">
+            Đóng
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">{error}</div>
+          )}
+          <div>
+            <FieldLabel>Mật khẩu hiện tại</FieldLabel>
+            <input
+              type="password"
+              value={form.currentPassword}
+              onChange={e => setForm({ ...form, currentPassword: e.target.value })}
+              placeholder="Nhập mật khẩu hiện tại"
+              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+            />
+          </div>
+          <div>
+            <FieldLabel>Mật khẩu mới</FieldLabel>
+            <input
+              type="password"
+              value={form.newPassword}
+              onChange={e => setForm({ ...form, newPassword: e.target.value })}
+              placeholder="Ít nhất 6 ký tự"
+              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+            />
+          </div>
+          <div>
+            <FieldLabel>Xác nhận mật khẩu mới</FieldLabel>
+            <input
+              type="password"
+              value={form.confirmPassword}
+              onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
+              placeholder="Nhập lại mật khẩu mới"
+              className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+            />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 bg-gray-100 text-[#7d8794] text-sm font-medium rounded-lg hover:bg-gray-200"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-[#d71920] text-white text-sm font-medium rounded-lg hover:bg-[#c6171e] disabled:opacity-50"
+            >
+              {saving ? 'Đang xử lý...' : 'Xác nhận'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
 
-function SelectField({ label, value, onChange, options }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <select
-        value={value}
-        onChange={onChange}
-        className="w-full bg-[#f2f3ff] px-4 py-3 rounded-lg text-[#131b2e] text-sm outline-none
-          focus:bg-white focus:ring-2 focus:ring-[#4450b7]/20 transition-all duration-200 cursor-pointer"
-      >
-        {options.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
-    </div>
-  )
+const normalizeWishlist = (res) => res?.items || res?.products || res?.wishlist || []
+
+const profileToForm = (profile = {}) => ({
+  name: cleanText(profile.name),
+  email: cleanText(profile.email),
+  phone: cleanText(profile.phone),
+  birthDate: cleanText(profile.birthDate || profile.birth_date),
+  gender: cleanText(profile.gender),
+})
+
+const getDefaultAddress = (addresses) => (
+  addresses.find(address => Number(address.is_default) === 1 || address.isDefault) || addresses[0] || null
+)
+
+const formatAddress = (address) => {
+  if (!address) return ''
+  return joinClean(address.address, address.ward, address.district, address.city)
 }
 
 const ProfilePage = () => {
-  const { user, isAuthenticated, updateUser, logout, loading: authLoading } = useAuth()
+  const { user, isAuthenticated, updateUser, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState('profile')
   const [isEditing, setIsEditing] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [orders, setOrders] = useState([])
-  const [ordersLoading, setOrdersLoading] = useState(false)
-  const [editForm, setEditForm] = useState({
-    name: '', email: '', phone: '', birthDate: '', gender: ''
-  })
+  const [favorites, setFavorites] = useState([])
+  const [addresses, setAddresses] = useState([])
+  const [editForm, setEditForm] = useState(profileToForm(user))
   const [saving, setSaving] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate('/login')
   }, [authLoading, isAuthenticated, navigate])
 
   useEffect(() => {
-    if (isAuthenticated && user) {
-      setEditForm({
-        name: user.name || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        birthDate: user.birthDate || '',
-        gender: user.gender || ''
-      })
-    }
-  }, [user, isAuthenticated])
+    if (user) setEditForm(profileToForm(user))
+  }, [user])
 
   useEffect(() => {
-    if (isAuthenticated) fetchOrders()
+    if (!isAuthenticated) return
+
+    let mounted = true
+    const fetchAccountData = async () => {
+      setLoadingData(true)
+      const [profileRes, ordersRes, wishlistRes, addressRes] = await Promise.allSettled([
+        api.get('/profile'),
+        api.get('/orders', { params: { page: 1, limit: 10 } }),
+        api.get('/wishlist'),
+        api.get('/addresses'),
+      ])
+
+      if (!mounted) return
+
+      if (profileRes.status === 'fulfilled' && profileRes.value?.success && profileRes.value.user) {
+        updateUser(profileRes.value.user)
+      }
+      if (ordersRes.status === 'fulfilled' && ordersRes.value?.success) {
+        setOrders(ordersRes.value.orders || [])
+      } else {
+        setOrders([])
+      }
+      if (wishlistRes.status === 'fulfilled' && wishlistRes.value?.success) {
+        setFavorites(normalizeWishlist(wishlistRes.value))
+      } else {
+        setFavorites([])
+      }
+      if (addressRes.status === 'fulfilled' && addressRes.value?.success) {
+        setAddresses(addressRes.value.addresses || [])
+      } else {
+        setAddresses([])
+      }
+      setLoadingData(false)
+    }
+
+    fetchAccountData()
+    return () => { mounted = false }
   }, [isAuthenticated])
 
-  const fetchOrders = async () => {
-    setOrdersLoading(true)
-    try {
-      const res = await api.get('/orders')
-      if (res.success) setOrders(res.orders || [])
-      else setOrders([])
-    } catch { setOrders([]) } finally { setOrdersLoading(false) }
-  }
+  const defaultAddress = useMemo(() => getDefaultAddress(addresses), [addresses])
+  const rewardPoints = user?.rewardPoints ?? user?.reward_points ?? user?.loyaltyPoints
+  const hasRewardPoints = rewardPoints !== undefined && rewardPoints !== null
+  const memberLevel = memberLevelLabel(user?.memberLevel || user?.member_level)
+
+  const accountFields = [
+    { label: 'Họ và tên', value: user?.name },
+    { label: 'Email', value: user?.email },
+    { label: 'Số điện thoại', value: user?.phone },
+    { label: 'Ngày sinh', value: formatDate(user?.birthDate || user?.birth_date) },
+    { label: 'Giới tính', value: genderLabel(user?.gender) },
+    { label: 'Ngày tham gia', value: formatDate(user?.created_at) },
+    ...(memberLevel ? [{ label: 'Hạng thành viên', value: memberLevel }] : []),
+    ...(hasRewardPoints ? [{ label: 'Điểm tích lũy', value: toNumber(rewardPoints).toLocaleString('vi-VN') }] : []),
+  ]
 
   const handleEdit = () => {
-    setEditForm({
-      name: user?.name || '', email: user?.email || '',
-      phone: user?.phone || '', birthDate: user?.birthDate || '', gender: user?.gender || ''
-    })
+    setEditForm(profileToForm(user))
     setIsEditing(true)
   }
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      updateUser(editForm)
-      setIsEditing(false)
-    } finally { setSaving(false) }
-  }
-
-  const handleLogout = () => {
-    if (window.confirm('Bạn có chắc muốn đăng xuất?')) {
-      logout()
-      navigate('/')
+      const res = await api.put('/profile', {
+        name: editForm.name,
+        phone: editForm.phone,
+        birthDate: editForm.birthDate,
+        gender: editForm.gender,
+      })
+      if (res.success && res.user) {
+        updateUser(res.user)
+        setEditForm(profileToForm(res.user))
+        setIsEditing(false)
+      }
+    } catch {
+      setEditForm(profileToForm(user))
+    } finally {
+      setSaving(false)
     }
   }
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return ''
-    try {
-      return new Date(dateStr).toLocaleDateString('vi-VN', {
-        day: '2-digit', month: '2-digit', year: 'numeric'
-      })
-    } catch { return dateStr }
-  }
-
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#faf8ff] flex items-center justify-center">
-        <span className="material-symbols-outlined text-4xl animate-spin text-[#4450b7]">progress_activity</span>
-      </div>
-    )
-  }
-
+  if (authLoading) return <AccountLayout activeId="profile" loading />
   if (!isAuthenticated || !user) return null
 
-  const hasRealOrders = orders.length > 0
-
   return (
-    <div className="min-h-screen bg-[#faf8ff]">
-      <Header cartCount={0} />
-
-      <main className="pt-20 max-w-screen-2xl mx-auto px-6 md:px-12 py-12">
-        <div className="flex flex-col lg:flex-row gap-10">
-
-          {/* ===== SIDEBAR ===== */}
-          <aside className="lg:w-64 shrink-0 lg:sticky lg:top-[88px] lg:self-start">
-            {/* User summary card */}
-            <div className="bg-white rounded-2xl p-5 mb-3"
-              style={{ boxShadow: '0 20px 40px rgba(19, 27, 46, 0.06)' }}>
-              <div className="flex items-center gap-4">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name}
-                    className="w-12 h-12 rounded-full object-cover ring-2 ring-[#eaedff]" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-[#4450b7] flex items-center justify-center
-                    text-white font-bold text-lg font-['Space_Grotesk'] shrink-0">
-                    {user.name ? user.name.charAt(0).toUpperCase() : '?'}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="font-semibold text-[#131b2e] truncate leading-tight">{user.name || 'Khách hàng'}</p>
-                  <p className="text-xs text-[#454652] mt-0.5 truncate">{user.email}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <nav className="bg-[#f2f3ff] rounded-2xl p-2 flex flex-col gap-0.5">
-              {NAV_ITEMS.map(item => {
-                const isActive = activeTab === item.id
-                return (
-                  <Link
-                    key={item.id}
-                    to={item.path}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
-                      isActive
-                        ? 'bg-white text-[#4450b7] font-semibold'
-                        : 'text-[#454652] hover:bg-white/60 hover:text-[#131b2e]'
-                    }`}
-                    style={isActive ? { boxShadow: '0 8px 16px rgba(19, 27, 46, 0.05)' } : {}}
-                  >
-                    {isActive && (
-                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[#4450b7] rounded-r-full" />
-                    )}
-                    <span className="material-symbols-outlined text-xl">{item.icon}</span>
-                    <span className="text-sm">{item.label}</span>
-                  </Link>
-                )
-              })}
-
-              {/* Divider - tonal shift */}
-              <div className="my-1 h-px bg-[#dae2fd]/40 mx-3" />
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                  text-[#454652] hover:bg-white/60 hover:text-[#c9392c] w-full text-left group"
-              >
-                <span className="material-symbols-outlined text-xl">logout</span>
-                <span className="text-sm">Đăng xuất</span>
-              </button>
-            </nav>
-          </aside>
-
-          {/* ===== MAIN CONTENT ===== */}
-          <div className="flex-1 min-w-0 space-y-8">
-
-            {/* Profile Header */}
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <h1 className="font-['Space_Grotesk'] text-xl font-bold tracking-tight text-[#131b2e] leading-none mt-6">
-                  Hồ sơ cá nhân
-                </h1>
-              </div>
-              {!isEditing && (
-                <button
-                  onClick={handleEdit}
-                  className="shrink-0 px-5 py-2.5 bg-gradient-to-br from-[#4450b7] to-[#5e6ad2] text-white text-sm font-medium rounded-lg
-                    hover:opacity-90 transition-all duration-200 flex items-center gap-2"
-                  style={{ boxShadow: '0 8px 20px rgba(68, 80, 183, 0.25)' }}
-                >
-                  <span className="material-symbols-outlined text-base">edit</span>
-                  Chỉnh sửa
-                </button>
-              )}
-            </div>
-
-            {/* Profile Card */}
-            <div className="bg-white rounded-2xl p-8"
-              style={{ boxShadow: '0 20px 40px rgba(19, 27, 46, 0.06)' }}>
-
-              {/* Avatar + member level */}
-              <div className="flex items-center gap-5 mb-10">
-                <div className="relative">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt="Ảnh đại diện"
-                      className="w-24 h-24 rounded-2xl object-cover" />
-                  ) : (
-                    <div className="w-24 h-24 rounded-2xl bg-[#4450b7] flex items-center justify-center
-                      text-white font-bold text-4xl font-['Space_Grotesk']">
-                      {user.name ? user.name.charAt(0).toUpperCase() : '?'}
-                    </div>
-                  )}
-                  <button className="absolute -bottom-2 -right-2 w-9 h-9 bg-[#4450b7] text-white rounded-xl flex items-center justify-center
-                    hover:opacity-80 transition-all"
-                    style={{ boxShadow: '0 4px 12px rgba(68, 80, 183, 0.35)' }}>
-                    <span className="material-symbols-outlined text-base">photo_camera</span>
-                  </button>
-                </div>
-                <div>
-                  <p className="font-['Space_Grotesk'] text-xl font-bold text-[#131b2e]">{user.name || 'Chưa cập nhật'}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="px-3 py-1 bg-[#eaedff] text-[#4450b7] text-xs font-semibold rounded-full">
-                      Thành viên {user.memberLevel || 'Bronze'}
-                    </span>
-                    {user.email && (
-                      <span className="text-xs text-[#454652]">{user.email}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Info Grid */}
-              {isEditing ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                  <InputField label="Họ và tên" value={editForm.name}
-                    onChange={e => setEditForm({ ...editForm, name: e.target.value })}
-                    placeholder="Nguyễn Văn A" required />
-                  <InputField label="Email" value={editForm.email} type="email"
-                    onChange={e => setEditForm({ ...editForm, email: e.target.value })}
-                    placeholder="email@example.com" />
-                  <InputField label="Số điện thoại" value={editForm.phone} type="tel"
-                    onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                    placeholder="0912 345 678" />
-                  <InputField label="Ngày sinh" value={editForm.birthDate}
-                    onChange={e => setEditForm({ ...editForm, birthDate: e.target.value })}
-                    placeholder="15/05/1995" />
-                  <SelectField label="Giới tính" value={editForm.gender}
-                    onChange={e => setEditForm({ ...editForm, gender: e.target.value })}
-                    options={[
-                      { value: '', label: 'Chọn giới tính' },
-                      { value: 'Nam', label: 'Nam' },
-                      { value: 'Nữ', label: 'Nữ' },
-                      { value: 'Khác', label: 'Khác' },
-                    ]} />
-                  <div className="flex items-end gap-3 md:col-span-2 pt-2">
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="px-6 py-3 bg-[#f2f3ff] text-[#454652] text-sm font-medium rounded-xl hover:bg-[#dae2fd]/40 transition-all"
-                    >
-                      Hủy
-                    </button>
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="px-8 py-3 bg-gradient-to-br from-[#4450b7] to-[#5e6ad2] text-white text-sm font-medium rounded-xl
-                        hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-60"
-                      style={{ boxShadow: '0 8px 20px rgba(68, 80, 183, 0.25)' }}
-                    >
-                      {saving ? (
-                        <><span className="material-symbols-outlined text-base animate-spin">progress_activity</span> Đang lưu...</>
-                      ) : (
-                        <><span className="material-symbols-outlined text-base">save</span> Lưu thay đổi</>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-12">
-                  <div>
-                    <FieldLabel>Họ và tên</FieldLabel>
-                    <FieldValue>{user.name}</FieldValue>
-                  </div>
-                  <div>
-                    <FieldLabel>Email</FieldLabel>
-                    <FieldValue>{user.email}</FieldValue>
-                  </div>
-                  <div>
-                    <FieldLabel>Số điện thoại</FieldLabel>
-                    <FieldValue>{user.phone}</FieldValue>
-                  </div>
-                  <div>
-                    <FieldLabel>Ngày sinh</FieldLabel>
-                    <FieldValue>{user.birthDate}</FieldValue>
-                  </div>
-                  <div>
-                    <FieldLabel>Giới tính</FieldLabel>
-                    <FieldValue>{user.gender}</FieldValue>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Recent Orders */}
-            <div>
-              <div className="flex items-end justify-between mb-5">
-                <div>
-                  <h2 className="font-['Space_Grotesk'] text-lg font-bold text-[#131b2e] tracking-tight leading-none">
-                    Đơn hàng gần đây
-                  </h2>
-                </div>
-                {hasRealOrders && (
-                  <Link to="/orders"
-                    className="flex items-center gap-1 text-[#4450b7] text-sm font-medium hover:gap-2 transition-all duration-200">
-                    Xem tất cả
-                    <span className="material-symbols-outlined text-base">arrow_forward</span>
-                  </Link>
-                )}
-              </div>
-
-              {ordersLoading ? (
-                <div className="bg-[#f2f3ff] rounded-2xl p-10 flex flex-col items-center gap-4">
-                  <span className="material-symbols-outlined text-3xl animate-spin text-[#4450b7]">progress_activity</span>
-                  <p className="text-sm text-[#454652]">Đang tải đơn hàng...</p>
-                </div>
-              ) : !hasRealOrders ? (
-                <div className="bg-[#f2f3ff] rounded-2xl p-12 flex flex-col items-center text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-[#dae2fd] flex items-center justify-center mb-5">
-                    <span className="material-symbols-outlined text-3xl text-[#4450b7]">shopping_bag</span>
-                  </div>
-                  <p className="font-['Space_Grotesk'] text-lg font-semibold text-[#131b2e] mb-2">
-                    Bạn chưa có đơn hàng nào
-                  </p>
-                  <p className="text-sm text-[#454652] mb-6">
-                    Hãy bắt đầu mua sắm để có đơn hàng đầu tiên
-                  </p>
-                  <Link to="/"
-                    className="px-7 py-3 bg-gradient-to-br from-[#4450b7] to-[#5e6ad2] text-white text-sm font-medium rounded-xl
-                      hover:opacity-90 transition-all"
-                    style={{ boxShadow: '0 8px 20px rgba(68, 80, 183, 0.25)' }}>
-                    Khám phá sản phẩm
-                  </Link>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {orders.slice(0, 5).map(order => {
-                    const badge = STATUS_BADGE[order.status] || STATUS_BADGE.pending
-                    return (
-                      <Link
-                        key={order.id}
-                        to="/orders"
-                        onClick={() => setActiveTab('orders')}
-                        className="bg-white rounded-2xl p-5 flex items-center gap-5
-                          hover:bg-[#f2f3ff] transition-all duration-200 group"
-                        style={{ boxShadow: '0 8px 24px rgba(19, 27, 46, 0.05)' }}
-                      >
-                        {/* Thumbnail */}
-                        <div className="w-14 h-14 rounded-xl bg-[#f2f3ff] overflow-hidden flex items-center justify-center shrink-0">
-                          {order.first_image ? (
-                            <img src={order.first_image} alt=""
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          ) : (
-                            <span className="material-symbols-outlined text-2xl text-[#a5a6aa]">inventory_2</span>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
-                            <span className="text-xs font-medium text-[#a5a6aa] uppercase tracking-wider">
-                              #{order.order_number}
-                            </span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.bg} ${badge.text}`}>
-                              {badge.label}
-                            </span>
-                          </div>
-                          <p className="text-sm font-medium text-[#131b2e]">{order.item_count} sản phẩm</p>
-                          <p className="text-xs text-[#454652] mt-0.5">{formatDate(order.created_at)}</p>
-                        </div>
-
-                        {/* Price */}
-                        <div className="text-right shrink-0">
-                          <p className="font-['Space_Grotesk'] font-bold text-base text-[#131b2e]">
-                            {formatPrice(order.total_price)}
-                          </p>
-                          <span className="material-symbols-outlined text-lg text-[#a5a6aa] group-hover:text-[#4450b7] transition-colors">
-                            chevron_right
-                          </span>
-                        </div>
-                      </Link>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Link to="/favorites"
-                className="bg-white rounded-2xl p-5 flex items-center gap-4 hover:bg-[#f2f3ff] transition-all duration-200 group"
-                style={{ boxShadow: '0 8px 24px rgba(19, 27, 46, 0.05)' }}>
-                <div className="w-11 h-11 rounded-xl bg-[#fef0f0] flex items-center justify-center shrink-0
-                  group-hover:bg-[#fedcdc] transition-colors">
-                  <span className="material-symbols-outlined text-xl text-[#e05c5c]">favorite</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-[#131b2e] text-sm">Yêu thích</p>
-                  <p className="text-xs text-[#454652]">Xem sản phẩm đã lưu</p>
-                </div>
-                <span className="material-symbols-outlined text-lg text-[#a5a6aa] ml-auto group-hover:text-[#4450b7] transition-colors">
-                  arrow_forward
-                </span>
-              </Link>
-            </div>
+    <AccountLayout activeId="profile" loading={loadingData}>
+      <AccountPageHeader
+        title="Hồ sơ cá nhân"
+        description="Quản lý thông tin tài khoản và theo dõi hoạt động mua sắm"
+        action={!isEditing && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowPasswordModal(true)}
+              className="px-4 py-2 text-sm text-[#7d8794] hover:text-[#2f3840] transition-colors"
+            >
+              Đổi mật khẩu
+            </button>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="px-5 py-2.5 bg-[#d71920] text-white text-sm font-medium rounded-lg hover:bg-[#c6171e] transition-colors"
+            >
+              Chỉnh sửa
+            </button>
           </div>
-        </div>
-      </main>
+        )}
+      />
 
-      <Footer />
-    </div>
+      <div className="space-y-6">
+        <section className="bg-white rounded-xl border border-[#e5e7eb] p-6">
+          <div className="flex items-center justify-between gap-4 mb-5">
+            <h2 className="text-base font-semibold text-[#2f3840]">Thông tin tài khoản</h2>
+          </div>
+
+          {isEditing ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+              <div>
+                <FieldLabel>Họ và tên *</FieldLabel>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+                />
+              </div>
+              <div>
+                <FieldLabel>Email</FieldLabel>
+                <input
+                  type="email"
+                  value={editForm.email}
+                  disabled
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm bg-[#f7f7f7] text-[#7d8794]"
+                />
+              </div>
+              <div>
+                <FieldLabel>Số điện thoại</FieldLabel>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+                />
+              </div>
+              <div>
+                <FieldLabel>Ngày sinh</FieldLabel>
+                <input
+                  type="text"
+                  value={editForm.birthDate}
+                  onChange={e => setEditForm({ ...editForm, birthDate: e.target.value })}
+                  placeholder="1995-05-15"
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+                />
+              </div>
+              <div>
+                <FieldLabel>Giới tính</FieldLabel>
+                <select
+                  value={editForm.gender}
+                  onChange={e => setEditForm({ ...editForm, gender: e.target.value })}
+                  className="w-full px-4 py-3 border border-[#e5e7eb] rounded-lg text-sm focus:outline-none focus:border-[#d71920]"
+                >
+                  <option value="">Chọn giới tính</option>
+                  <option value="male">Nam</option>
+                  <option value="female">Nữ</option>
+                  <option value="other">Khác</option>
+                </select>
+              </div>
+              <div className="flex items-end gap-3 md:col-span-2">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="px-6 py-3 bg-gray-100 text-[#7d8794] text-sm font-medium rounded-lg hover:bg-gray-200"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="px-8 py-3 bg-[#d71920] text-white text-sm font-medium rounded-lg hover:bg-[#c6171e] disabled:opacity-50"
+                >
+                  {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-8">
+              {accountFields.map(field => (
+                <div key={field.label}>
+                  <FieldLabel>{field.label}</FieldLabel>
+                  <FieldValue>{field.value}</FieldValue>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white rounded-xl border border-[#e5e7eb] p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-[#2f3840]">Địa chỉ giao hàng mặc định</h2>
+              {defaultAddress ? (
+                <div className="mt-3 space-y-1">
+                  <p className="text-sm font-medium text-[#2f3840]">
+                    {cleanText(defaultAddress.full_name) || cleanText(user.name) || 'Người nhận'}
+                    {cleanText(defaultAddress.phone) && (
+                      <span className="font-normal text-[#7d8794]"> · {cleanText(defaultAddress.phone)}</span>
+                    )}
+                  </p>
+                  <p className="text-sm text-[#7d8794] leading-relaxed">{formatAddress(defaultAddress)}</p>
+                </div>
+              ) : (
+                <p className="text-sm text-[#7d8794] mt-3">Bạn chưa cập nhật địa chỉ giao hàng</p>
+              )}
+            </div>
+            <Link
+              to="/addresses"
+              className="inline-flex items-center justify-center px-4 py-2.5 border border-[#e5e7eb] rounded-lg text-sm font-medium text-[#2f3840] hover:border-[#d71920] hover:text-[#d71920]"
+            >
+              Cập nhật địa chỉ
+            </Link>
+          </div>
+        </section>
+
+        <ProfileSummary
+          orders={orders}
+          favoriteCount={favorites.length}
+          points={hasRewardPoints ? rewardPoints : undefined}
+        />
+
+        <div className="grid grid-cols-1 gap-6">
+          <RecentOrders orders={orders} limit={3} />
+          <RecentFavorites products={favorites} limit={4} />
+        </div>
+      </div>
+
+      <PasswordModal isOpen={showPasswordModal} onClose={() => setShowPasswordModal(false)} />
+    </AccountLayout>
   )
 }
 

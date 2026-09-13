@@ -112,7 +112,7 @@ const SearchPage = () => {
                   <span className="material-symbols-outlined text-xs text-slate-300">chevron_right</span>
                 )}
                 {crumb.href ? (
-                  <Link to={crumb.href} className="hover:text-[#4F46E5] transition-colors">
+                  <Link to={crumb.href} className="hover:text-[#DA291C] transition-colors">
                     {crumb.name}
                   </Link>
                 ) : (
@@ -145,7 +145,7 @@ const SearchPage = () => {
                       setPage(1)
                     }}
                     className="appearance-none bg-white border border-slate-200 rounded-xl px-4 py-2 pr-10 text-sm font-medium text-slate-700
-                      hover:border-[#4F46E5] focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5]
+                      hover:border-[#DA291C] focus:outline-none focus:ring-2 focus:ring-[#DA291C]/20 focus:border-[#DA291C]
                       transition-all duration-200 cursor-pointer"
                   >
                     <option value="newest">Mới nhất</option>
@@ -163,7 +163,7 @@ const SearchPage = () => {
               {(categorySlug || brandSlug || query) && (
                 <div className="flex items-center gap-2 flex-wrap">
                   {categorySlug && (
-                    <span className="inline-flex items-center gap-1.5 bg-[#4F46E5]/10 text-[#4F46E5] text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 bg-[#DA291C]/10 text-[#DA291C] text-xs font-semibold px-3 py-1.5 rounded-full">
                       Danh mục: {getPageTitle()}
                       <Link to="/search" className="hover:opacity-70">
                         <span className="material-symbols-outlined text-base">close</span>
@@ -171,7 +171,7 @@ const SearchPage = () => {
                     </span>
                   )}
                   {brandSlug && (
-                    <span className="inline-flex items-center gap-1.5 bg-[#4F46E5]/10 text-[#4F46E5] text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 bg-[#DA291C]/10 text-[#DA291C] text-xs font-semibold px-3 py-1.5 rounded-full">
                       Thương hiệu: {getPageTitle()}
                       <Link to="/search" className="hover:opacity-70">
                         <span className="material-symbols-outlined text-base">close</span>
@@ -179,7 +179,7 @@ const SearchPage = () => {
                     </span>
                   )}
                   {query && (
-                    <span className="inline-flex items-center gap-1.5 bg-[#4F46E5]/10 text-[#4F46E5] text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <span className="inline-flex items-center gap-1.5 bg-[#DA291C]/10 text-[#DA291C] text-xs font-semibold px-3 py-1.5 rounded-full">
                       Tìm: "{query}"
                       <Link to={categorySlug ? `/search?category=${categorySlug}` : '/search'} className="hover:opacity-70">
                         <span className="material-symbols-outlined text-base">close</span>
@@ -194,7 +194,7 @@ const SearchPage = () => {
           {/* Content */}
           {loading ? (
             <div className="flex justify-center py-24">
-              <div className="animate-spin w-10 h-10 border-4 border-[#4F46E5] border-t-transparent rounded-full" />
+              <div className="animate-spin w-10 h-10 border-4 border-[#DA291C] border-t-transparent rounded-full" />
             </div>
           ) : error ? (
             <div className="text-center py-24">
@@ -236,7 +236,7 @@ const SearchPage = () => {
                       onClick={() => setPage(p => Math.max(1, p - 1))}
                       disabled={page === 1}
                       className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500
-                        hover:bg-[#4F46E5] hover:text-white hover:border-[#4F46E5]
+                        hover:bg-[#DA291C] hover:text-white hover:border-[#DA291C]
                         disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:hover:border-slate-200
                         transition-all duration-200"
                     >
@@ -260,7 +260,7 @@ const SearchPage = () => {
                           onClick={() => setPage(pageNum)}
                           className={`w-10 h-10 rounded-xl font-semibold text-sm transition-all duration-200
                             ${page === pageNum
-                              ? 'bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white shadow-[0_4px_14px_rgba(79,70,229,0.3)]'
+                              ? 'bg-[#DA291C] text-white shadow-[0_4px_14px_rgba(218,41,28,0.25)]'
                               : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
                             }`}
                         >
@@ -286,7 +286,7 @@ const SearchPage = () => {
                       onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                       disabled={page === totalPages}
                       className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500
-                        hover:bg-[#4F46E5] hover:text-white hover:border-[#4F46E5]
+                        hover:bg-[#DA291C] hover:text-white hover:border-[#DA291C]
                         disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-500 disabled:hover:border-slate-200
                         transition-all duration-200"
                     >

@@ -36,7 +36,8 @@ function Sidebar({ activeId, onNavigate }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const handleLogout = () => {
-    if (window.confirm('Bạn có chắc muốn đăng xuất?')) { logout(); navigate('/') }
+    logout()
+    navigate('/')
   }
   return (
     <aside className="lg:w-64 shrink-0">

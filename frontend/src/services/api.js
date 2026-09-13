@@ -13,12 +13,15 @@ const api = axios.create({
 // Log all requests
 api.interceptors.request.use(
   (config) => {
-    // Admin token takes priority, fallback to customer token
+    const requestUrl = config.url || ''
+    const isAdminRequest = requestUrl.startsWith('/admin')
     const adminToken = localStorage.getItem('admin_token')
     const customerToken = localStorage.getItem('clothing_store_token')
-    const token = adminToken || customerToken
+    const token = isAdminRequest ? adminToken : customerToken
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    } else if (config.headers.Authorization) {
+      delete config.headers.Authorization
     }
     return config
   },
@@ -30,10 +33,21 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     if (error.response?.status === 401) {
-      // Xử lý logout - dùng đúng key consistent với AuthContext
-      localStorage.removeItem('clothing_store_token')
-      localStorage.removeItem('clothing_store_auth')
-      window.location.href = '/login'
+      const isAdminRequest = error.config?.url?.startsWith('/admin')
+      if (isAdminRequest) {
+        localStorage.removeItem('admin_token')
+        window.location.href = '/admin/login'
+      } else {
+        localStorage.removeItem('clothing_store_token')
+        localStorage.removeItem('clothing_store_auth')
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        sessionStorage.removeItem('clothing_store_token')
+        sessionStorage.removeItem('clothing_store_auth')
+        sessionStorage.removeItem('token')
+        sessionStorage.removeItem('user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -53,8 +67,16 @@ export const productAPI = {
     const queryParams = new URLSearchParams(params).toString()
     return api.get(`/products${queryParams ? `?${queryParams}` : ''}`)
   },
+  getKidsProducts: (params) => {
+    const queryParams = new URLSearchParams(params).toString()
+    return api.get(`/products/kids${queryParams ? `?${queryParams}` : ''}`)
+  },
   getKidsCategories: () => api.get('/products/kids-categories'),
   search: (query) => api.get(`/products/search?q=${encodeURIComponent(query)}`),
+  getSuggested: (params) => {
+    const queryParams = new URLSearchParams(params).toString()
+    return api.get(`/products/suggested${queryParams ? `?${queryParams}` : ''}`)
+  },
 }
 
 export const saleAPI = {

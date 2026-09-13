@@ -1,32 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { searchAPI } from '../services/api'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
 import { formatPrice } from '../utils/formatPrice'
+import CartDrawer from './CartDrawer'
 
 const Header = () => {
   const { getItemCount } = useCart()
   const { user, isAuthenticated, logout } = useAuth()
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showMobileNav, setShowMobileNav] = useState(false)
+  const [showCartDrawer, setShowCartDrawer] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState([])
-  const [isSearching, setIsSearching] = useState(false)
   const [showResults, setShowResults] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const [cartBounce, setCartBounce] = useState(false)
   const userMenuRef = useRef(null)
   const searchRef = useRef(null)
   const navigate = useNavigate()
-  const location = useLocation()
 
   const cartCount = getItemCount()
 
-  const navLinks = [
-    { name: 'Nam', href: '/nam' },
-    { name: 'Nữ', href: '/nu' },
-    { name: 'Trẻ em', href: '/tre-em' },
-    { name: 'Giảm giá', href: '/giam-gia' }
-  ]
+  // Scroll detection
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 10)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Expose cart bounce trigger
+  useEffect(() => {
+    window.__triggerCartBounce = () => {
+      setCartBounce(true)
+      setTimeout(() => setCartBounce(false), 600)
+    }
+    return () => { delete window.__triggerCartBounce }
+  }, [])
 
   // Debounced search
   useEffect(() => {
@@ -37,16 +48,14 @@ const Header = () => {
     }
 
     const delaySearch = setTimeout(async () => {
-      setIsSearching(true)
       try {
         const response = await searchAPI.search(searchQuery)
-        setSearchResults(response.data?.products || response.data || [])
+        const products = response.data?.products || response.data || []
+        setSearchResults(products)
         setShowResults(true)
       } catch (error) {
         console.error('Search error:', error)
         setSearchResults([])
-      } finally {
-        setIsSearching(false)
       }
     }, 300)
 
@@ -89,204 +98,248 @@ const Header = () => {
   }
 
   return (
-    <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl transition-all duration-300 border-b border-slate-100/50">
-      <nav className="flex justify-between items-center px-6 md:px-10 h-[72px] w-full max-w-[1400px] mx-auto">
-        {/* Logo */}
-        <div className="flex items-center gap-10">
-          <Link to="/" className="text-2xl font-extrabold tracking-[-0.02em] text-slate-900">
-            CLOTH
-          </Link>
-          <div className="hidden md:flex gap-8 items-center h-full">
-            {navLinks.map((link) => {
-              const isActive = location.pathname === link.href
-              return (
-                <Link
-                  key={link.name}
-                  to={link.href}
-                  className={`${
-                    isActive
-                      ? 'text-[#4F46E5] font-semibold'
-                      : 'text-slate-600'
-                  } hover:text-[#4F46E5] transition-colors duration-200 text-sm font-medium`}
-                >
-                  {link.name}
-                </Link>
-              )
-            })}
-          </div>
-        </div>
+    <>
+      <header
+        className={`sticky top-0 z-50 bg-white transition-shadow duration-300 ${
+          scrolled ? 'shadow-[0_1px_8px_rgba(0,0,0,0.1)]' : 'shadow-[0_1px_3px_rgba(0,0,0,0.06)]'
+        }`}
+      >
+        <div className="container">
+          <div className="flex items-center h-16 lg:h-[72px] gap-4">
+            <Link to="/" className="text-xl lg:text-2xl font-black tracking-[0.1em] text-[#333F48] flex-shrink-0 transition-opacity duration-200 hover:opacity-80">
+              Minh Hải
+            </Link>
 
-        {/* User & Cart */}
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="relative" ref={searchRef}>
-            <form onSubmit={handleSearchSubmit}>
-              <div
-                className={`flex items-center bg-slate-50 border border-slate-200 px-3 py-2 rounded-full group transition-all w-44 ${
-                  isSearchFocused ? 'ring-2 ring-[#4F46E5]/30 ring-offset-1 border-[#4F46E5] w-64 bg-white shadow-[0_4px_14px_rgba(79,70,229,0.1)]' : ''
-                }`}
+          {/* Desktop Nav */}
+          <nav className="hidden lg:flex items-center gap-6 ml-8 flex-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                to={link.href}
+                className="nav-link font-bold text-sm text-[#333F48] whitespace-nowrap hover:text-[#DA291C] transition-colors duration-200"
               >
-                <span className="material-symbols-outlined text-slate-400 text-sm">search</span>
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm..."
-                  className="bg-transparent border-none focus:ring-0 text-sm flex-1 mx-2 placeholder:text-slate-400 w-28 font-medium"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onFocus={() => setIsSearchFocused(true)}
-                  onBlur={() => setIsSearchFocused(false)}
-                />
-                {isSearching && (
-                  <div className="animate-spin w-4 h-4 border-2 border-[#4F46E5] border-t-transparent rounded-full"></div>
-                )}
-                {searchQuery && !isSearching && (
-                  <button
-                    type="button"
-                    onClick={() => { setSearchQuery(''); setSearchResults([]); }}
-                    className="hover:text-[#4F46E5]"
-                  >
-                    <span className="material-symbols-outlined text-sm">close</span>
-                  </button>
-                )}
-              </div>
-            </form>
+                {link.name}
+              </Link>
+            ))}
+          </nav>
 
-            {/* Search Results Dropdown */}
-            {showResults && (
-              <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-[0_8px_30px_rgba(79,70,229,0.12)] border border-slate-100 overflow-hidden max-h-[400px] overflow-y-auto w-80">
-                {searchResults.length > 0 ? (
-                  <>
-                    {searchResults.slice(0, 6).map((product) => (
-                      <div
-                        key={product.id}
-                        onClick={() => handleResultClick(product.slug)}
-                        className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer transition-colors"
-                      >
-                        <img
-                          src={product.image_url || product.image}
-                          alt={product.name}
-                          className="w-10 h-10 object-cover rounded-lg"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-sm text-slate-900 truncate">{product.name}</h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[#4F46E5] font-bold text-sm">
-                              {formatPrice(product.price)}đ
-                            </span>
-                            {product.compare_price && product.compare_price > product.price && (
-                              <span className="text-slate-400 text-xs line-through">
-                                {formatPrice(product.compare_price)}đ
+          {/* Actions */}
+          <div className="flex items-center gap-2 lg:gap-3 ml-auto">
+            {/* Search */}
+            <div className="relative" ref={searchRef}>
+              <form onSubmit={handleSearchSubmit} className="flex items-center">
+                <div className="relative">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74869B] transition-colors duration-200" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.34-4.34"/>
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onFocus={() => searchQuery.trim() && setShowResults(true)}
+                    placeholder="Tìm kiếm sản phẩm..."
+                    className="input-animate w-48 lg:w-64 h-9 pl-9 pr-3 border border-[#ADBCCD] rounded text-sm text-[#333F48] bg-white placeholder:text-[#74869B]"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setSearchResults([]); setShowResults(false); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[#74869B] hover:text-[#333F48] transition-colors duration-200"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Search Results Dropdown */}
+              {showResults && (
+                <div className="animate-fade-down absolute top-full right-0 mt-1 bg-white rounded shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#E5EAF0] overflow-hidden max-h-[400px] overflow-y-auto w-80 z-50">
+                  {searchResults.length > 0 ? (
+                    <>
+                      {searchResults.slice(0, 6).map((product) => (
+                        <div
+                          key={product.id}
+                          onClick={() => handleResultClick(product.slug)}
+                          className="flex items-center gap-3 p-3 hover:bg-[#F4F6F9] cursor-pointer transition-colors duration-150"
+                        >
+                          <img
+                            src={product.image_url || product.image}
+                            alt={product.name}
+                            className="w-10 h-10 object-cover rounded"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm text-[#333F48] truncate">{product.name}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="font-bold text-sm text-[#DA291C]">
+                                {formatPrice(product.price)}
                               </span>
-                            )}
+                              {product.compare_price && product.compare_price > product.price && (
+                                <span className="text-[#74869B] text-xs line-through">
+                                  {formatPrice(product.compare_price)}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                    {searchResults.length > 6 && (
+                      ))}
                       <div
                         onClick={handleSearchSubmit}
-                        className="p-3 text-center text-[#4F46E5] font-semibold cursor-pointer hover:bg-slate-50 border-t border-slate-100 text-sm"
+                        className="p-3 text-center text-[#DA291C] font-bold text-sm cursor-pointer border-t border-[#E5EAF0] hover:bg-[#F4F6F9] transition-colors duration-150"
                       >
-                        Xem thêm {searchResults.length - 6} kết quả
+                        Xem thêm kết quả cho "{searchQuery}"
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="p-6 text-center text-slate-400">
-                    <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
-                    <p>Không tìm thấy sản phẩm nào</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* User Menu */}
-          <div className="relative" ref={userMenuRef}>
-            {isAuthenticated ? (
-              <>
-                <button
-                  onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-                >
-                  {user?.avatar ? (
-                    <img
-                      src={user.avatar}
-                      alt={user?.name}
-                      className="w-8 h-8 rounded-full object-cover border-2 border-[#4F46E5]"
-                    />
+                    </>
                   ) : (
-                    <div className="w-8 h-8 rounded-full border-2 border-[#4F46E5] bg-[#4F46E5]/10 flex items-center justify-center text-[#4F46E5] font-bold text-xs">
-                      {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
+                    <div className="p-6 text-center text-[#74869B]">
+                      <p>Không tìm thấy sản phẩm nào</p>
                     </div>
                   )}
-                </button>
+                </div>
+              )}
+            </div>
 
-                {/* User Dropdown */}
-                {showUserMenu && (
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-[0_8px_30px_rgba(79,70,229,0.12)] border border-slate-100 overflow-hidden">
-                    <div className="p-4 border-b border-slate-100">
-                      <p className="font-semibold text-slate-900 truncate">{user?.name}</p>
-                      <p className="text-sm text-slate-500 truncate">{user?.email}</p>
-                    </div>
-                    <div className="py-2">
-                      <Link
-                        to="/profile"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-[#4F46E5] transition-colors text-sm"
-                      >
-                        <span className="material-symbols-outlined text-base">person</span>
-                        Hồ sơ cá nhân
-                      </Link>
-                      <Link
-                        to="/orders"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-[#4F46E5] transition-colors text-sm"
-                      >
-                        <span className="material-symbols-outlined text-base">shopping_bag</span>
-                        Đơn hàng của tôi
-                      </Link>
-                      <Link
-                        to="/favorites"
-                        onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-slate-600 hover:bg-slate-50 hover:text-[#4F46E5] transition-colors text-sm"
-                      >
-                        <span className="material-symbols-outlined text-base">favorite</span>
-                        Yêu thích
-                      </Link>
-                    </div>
-                    <div className="border-t border-slate-100 py-2">
-                      <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-2.5 text-red-500 hover:bg-red-50 transition-colors w-full text-sm"
-                      >
-                        <span className="material-symbols-outlined text-base">logout</span>
-                        Đăng xuất
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <Link to="/login" className="hover:opacity-70 transition-opacity text-slate-900">
-                <span className="material-symbols-outlined">person</span>
-              </Link>
-            )}
-          </div>
+            {/* User */}
+            <div className="relative" ref={userMenuRef}>
+              {isAuthenticated ? (
+                <>
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="p-2 text-[#333F48] hover:text-[#DA291C] transition-colors duration-200"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </button>
 
-          {/* Cart */}
-          <Link to="/cart" className="hover:opacity-70 transition-opacity text-slate-900 relative">
-            <span className="material-symbols-outlined">shopping_cart</span>
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#4F46E5] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                {cartCount > 99 ? '99+' : cartCount}
+                  {showUserMenu && (
+                    <div className="animate-fade-down absolute top-full right-0 mt-2 w-56 bg-white rounded shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#E5EAF0] overflow-hidden z-50">
+                      <div className="p-4 border-b border-[#E5EAF0]">
+                        <p className="font-semibold text-[#333F48] truncate">{user?.name}</p>
+                        <p className="text-sm text-[#74869B] truncate">{user?.email}</p>
+                      </div>
+                      <div className="py-2">
+                        <Link
+                          to="/profile"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-[#333F48] hover:bg-[#F4F6F9] hover:text-[#DA291C] transition-colors duration-150 text-sm"
+                        >
+                          Hồ sơ cá nhân
+                        </Link>
+                        <Link
+                          to="/orders"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-[#333F48] hover:bg-[#F4F6F9] hover:text-[#DA291C] transition-colors duration-150 text-sm"
+                        >
+                          Đơn hàng của tôi
+                        </Link>
+                        <Link
+                          to="/favorites"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-[#333F48] hover:bg-[#F4F6F9] hover:text-[#DA291C] transition-colors duration-150 text-sm"
+                        >
+                          Yêu thích
+                        </Link>
+                      </div>
+                      <div className="border-t border-[#E5EAF0] py-2">
+                        <button
+                          onClick={handleLogout}
+                          className="flex items-center gap-3 px-4 py-2.5 text-red-500 hover:bg-red-50 transition-colors duration-150 w-full text-sm"
+                        >
+                          Đăng xuất
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link
+                  to="/login"
+                  className="p-2 text-[#333F48] hover:text-[#DA291C] transition-colors duration-200"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </Link>
+              )}
+            </div>
+
+            {/* Cart */}
+            <button
+              onClick={() => setShowCartDrawer(true)}
+              className="p-2 text-[#333F48] hover:text-[#DA291C] relative transition-colors duration-200 btn-press"
+            >
+              <span
+                className={`transition-transform duration-300 ${cartBounce ? 'cart-bounce' : ''}`}
+                style={{ display: 'inline-block' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/>
+                  <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+                </svg>
               </span>
-            )}
-          </Link>
+              {cartCount > 0 && (
+                <span
+                  className="absolute -top-1 -right-1 w-4 h-4 bg-[#DA291C] text-white text-[10px] font-bold rounded-full flex items-center justify-center transition-transform duration-200"
+                >
+                  {cartCount > 9 ? '9+' : cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* Mobile Menu Toggle */}
+            <button
+              onClick={() => setShowMobileNav(!showMobileNav)}
+              className="p-2 text-[#333F48] lg:hidden transition-colors duration-200"
+            >
+              {showMobileNav ? (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18"/><path d="m6 6 12 12"/>
+                </svg>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 12h16"/><path d="M4 18h16"/><path d="M4 6h16"/>
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
-      </nav>
+
+        {/* Mobile Nav */}
+        <div
+          className={`border-t border-[#ADBCCD] lg:hidden overflow-hidden transition-all duration-300 ${
+            showMobileNav ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="py-4">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                to={link.href}
+                onClick={() => setShowMobileNav(false)}
+                className="block py-2.5 font-bold text-sm text-[#333F48] hover:text-[#DA291C] transition-colors duration-150"
+              >
+                {link.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Cart Drawer */}
+      <CartDrawer isOpen={showCartDrawer} onClose={() => setShowCartDrawer(false)} />
     </header>
+    </>
   )
 }
+
+const navLinks = [
+  { name: 'NỮ', href: '/nu' },
+  { name: 'NAM', href: '/nam' },
+  { name: 'TRẺ EM', href: '/tre-em' },
+  { name: 'GIẢM GIÁ', href: '/giam-gia' }
+]
 
 export default Header

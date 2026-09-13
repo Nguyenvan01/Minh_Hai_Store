@@ -1,926 +1,484 @@
 -- =====================================================
 -- CLOTHING STORE - Seed Data
--- Complete Store Management System
+-- Run: source schema.sql first, then this file
 -- =====================================================
-CREATE DATABASE IF NOT EXISTS clothing_store
-CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 USE clothing_store;
-SET NAMES utf8mb4;
-SET time_zone = '+07:00';
-
--- =====================================================
--- Clean existing data (safe for re-run)
--- =====================================================
-SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE activity_logs;
-TRUNCATE TABLE notifications;
-TRUNCATE TABLE coupon_usage;
-TRUNCATE TABLE order_items;
-TRUNCATE TABLE orders;
-TRUNCATE TABLE cart_items;
-TRUNCATE TABLE wishlists;
-TRUNCATE TABLE reward_points;
-TRUNCATE TABLE return_requests;
-TRUNCATE TABLE product_reviews;
-TRUNCATE TABLE supplier_order_items;
-TRUNCATE TABLE supplier_orders;
-TRUNCATE TABLE shipping_fees;
-TRUNCATE TABLE shipping_zones;
-TRUNCATE TABLE shipping_providers;
-TRUNCATE TABLE payment_methods;
-TRUNCATE TABLE expenses;
-TRUNCATE TABLE expense_categories;
-TRUNCATE TABLE stock_movements;
-TRUNCATE TABLE product_variants;
-TRUNCATE TABLE product_images;
-TRUNCATE TABLE products;
-TRUNCATE TABLE coupons;
-TRUNCATE TABLE promotions;
-TRUNCATE TABLE news;
-TRUNCATE TABLE contacts;
-TRUNCATE TABLE brands;
-TRUNCATE TABLE suppliers;
-TRUNCATE TABLE employees;
-TRUNCATE TABLE warehouses;
-TRUNCATE TABLE colors;
-TRUNCATE TABLE sizes;
-TRUNCATE TABLE categories;
-TRUNCATE TABLE settings;
-TRUNCATE TABLE addresses;
-TRUNCATE TABLE users;
-SET FOREIGN_KEY_CHECKS = 1;
-
--- =====================================================
--- Seed: Warehouses
--- =====================================================
-INSERT INTO warehouses (name, code, address, phone, is_main, is_active) VALUES
-('Kho Hàng Chính TP.HCM', 'KHO-HCM-001', '123 Đường số 5, KCN Tân Thuận, Quận 7, TP.HCM', '02812345678', 1, 1),
-('Kho Hàng Hà Nội', 'KHO-HN-001', '456 Đường Nguyễn Trãi, Quận Thanh Xuân, Hà Nội', '02412345678', 0, 1),
-('Kho Hàng Cần Thơ', 'KHO-CT-001', '789 Đường 30 Tháng 4, Quận Ninh Kiều, Cần Thơ', '02921234567', 0, 1);
-
--- =====================================================
--- Seed: Suppliers
--- =====================================================
-INSERT INTO suppliers (name, code, email, phone, address, tax_code, contact_person, bank_account, bank_name, debt_limit, is_active) VALUES
-('Công Ty TNHH Thời Trang Phương Nam', 'NCC-001', 'phuongnam@fashion.vn', '02834567890', '123 Lý Thường Kiệt, Quận 10, TP.HCM', '0301234567', 'Nguyễn Văn Nam', '1234567890', 'Ngân hàng Vietcombank', 100000000, 1),
-('Công Ty CP Dệt May Thắng Lợi', 'NCC-002', 'thangloi@textile.vn', '02845678901', '456 Trần Phú, Quận 5, TP.HCM', '0302345678', 'Trần Thị Lan', '2345678901', 'Ngân hàng BIDV', 150000000, 1),
-('Hai Yen Fashion Co., Ltd', 'NCC-003', 'info@haiyen.vn', '02456789012', '789 Hoàng Quốc Việt, Hà Nội', '0102345678', 'Lê Minh Hùng', '3456789012', 'Ngân hàng Vietinbank', 200000000, 1),
-('Công Ty TNHH Vải Bảo Châu', 'NCC-004', 'baochau@fabric.vn', '02867890123', '321 Nguyễn Trãi, Quận 1, TP.HCM', '0303456789', 'Phạm Thị Bảo', '4567890123', 'Ngân hàng ACB', 50000000, 1),
-('PT Fashion Indonesia', 'NCC-005', 'sales@ptfashion.id', '+6221123456', 'Jakarta, Indonesia', 'ID2345678', 'Ahmad Wijaya', '5678901234', 'Bank Central Asia', 300000000, 1);
-
--- =====================================================
--- Seed: Users
--- Password: admin123 -> $2a$10$NpvovbVVIc1Y/mipPgtcSO0fhnBPlpuAcOfFrk4/EmxZAezviNGnK
--- Password: user123  -> $2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK
--- =====================================================
-INSERT INTO users (name, email, password, phone, address, role, gender, birth_date, member_level, default_city, default_district, default_address, reward_points, total_spent, is_active) VALUES
-('Admin Shop', 'admin@clothing-store.vn', '$2a$10$NpvovbVVIc1Y/mipPgtcSO0fhnBPlpuAcOfFrk4/EmxZAezviNGnK', '0909123456', '456 Nguyễn Trãi, Quận 5, TP.HCM', 'admin', 'male', '1990-05-15', 'Gold', 'TP.HCM', 'Quận 5', '456 Nguyễn Trãi', 0, 0, 1),
-('Nguyễn Thị Lan', 'lan.nguyen@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0901234567', '78 Cái Khế, Quận Ninh Kiều, Cần Thơ', 'user', 'female', '1995-03-20', 'Silver', 'Cần Thơ', 'Quận Ninh Kiều', '78 Cái Khế', 1500, 5500000, 1),
-('Trần Văn Minh', 'minh.tran@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0912345678', '23 Đường 3 Tháng 2, Quận 10, TP.HCM', 'user', 'male', '1992-08-12', 'Gold', 'TP.HCM', 'Quận 10', '23 Đường 3 Tháng 2', 2800, 8900000, 1),
-('Lê Hoài Trang', 'trang.le@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0934567890', '56 Lý Tự Trọng, Quận 1, TP.HCM', 'user', 'female', '1998-12-05', 'Bronze', 'TP.HCM', 'Quận 1', '56 Lý Tự Trọng', 500, 1800000, 1),
-('Phạm Đức Anh', 'anh.pham@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0945678901', '89 Pasteur, Quận 3, TP.HCM', 'user', 'male', '1993-06-25', 'Silver', 'TP.HCM', 'Quận 3', '89 Pasteur', 1200, 4200000, 1),
-('Võ Thị Mai Hương', 'huong.vo@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0956789012', '123 Nguyễn Huệ, Quận 1, TP.HCM', 'user', 'female', '1997-01-10', 'Bronze', 'TP.HCM', 'Quận 1', '123 Nguyễn Huệ', 800, 3200000, 1),
-('Hoàng Đức Mạnh', 'manh.hoang@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0967890123', '456 Trần Hưng Đạo, Quận 5, TP.HCM', 'user', 'male', '1991-09-18', 'Silver', 'TP.HCM', 'Quận 5', '456 Trần Hưng Đạo', 2200, 7500000, 1),
-('Trương Thị Hạnh', 'hanh.truong@email.com', '$2a$10$pPpNq5GJvSI/gGjei5yJX.yyHCTVYeNqGnN.MUJ6fMh3GGUar6rIK', '0978901234', '789 Lê Lai, Quận 3, TP.HCM', 'user', 'female', '1996-04-22', 'Bronze', 'TP.HCM', 'Quận 3', '789 Lê Lai', 600, 2100000, 1);
-
--- =====================================================
--- Seed: Employees
--- =====================================================
-INSERT INTO employees (user_id, employee_code, first_name, last_name, full_name, email, phone, id_card, birth_date, gender, address, position, department, hire_date, salary, commission_rate, is_active) VALUES
-(1, 'EMP-001', 'Minh', 'Nguyễn', 'Nguyễn Minh', 'admin@clothing-store.vn', '0909123456', '079195001234', '1990-05-15', 'male', '456 Nguyễn Trãi, Q5, TP.HCM', 'Quản lý cửa hàng', 'Quản lý', '2020-01-15', 15000000, 5.00, 1),
-(NULL, 'EMP-002', 'Thanh', 'Lê', 'Lê Thanh', 'thanh.le@clothing-store.vn', '0911111111', '079195001235', '1992-03-10', 'female', '123 Lê Lợi, Q1, TP.HCM', 'Nhân viên bán hàng', 'Kinh doanh', '2021-03-01', 8000000, 3.00, 1),
-(NULL, 'EMP-003', 'Hùng', 'Trần', 'Trần Hùng', 'hung.tran@clothing-store.vn', '0922222222', '079195001236', '1994-07-20', 'male', '456 Đồng Khởi, Q1, TP.HCM', 'Nhân viên kho', 'Kho vận', '2021-06-15', 7500000, 2.00, 1),
-(NULL, 'EMP-004', 'Hà', 'Ngô', 'Ngô Thị Hà', 'ha.ngo@clothing-store.vn', '0933333333', '079195001237', '1995-11-05', 'female', '789 Pasteur, Q3, TP.HCM', 'Nhân viên chăm sóc khách hàng', 'Chăm sóc khách hàng', '2022-01-10', 7000000, 2.50, 1),
-(NULL, 'EMP-005', 'Dũng', 'Lý', 'Lý Văn Dũng', 'dung.ly@clothing-store.vn', '0944444444', '079195001238', '1993-09-15', 'male', '321 Võ Văn Tần, Q3, TP.HCM', 'Kế toán', 'Tài chính', '2021-09-01', 9000000, 0.00, 1);
-
--- =====================================================
--- Seed: Addresses
--- =====================================================
-INSERT INTO addresses (user_id, full_name, phone, address, ward, district, city, is_default) VALUES
-(2, 'Nguyễn Thị Lan', '0901234567', '78 Cái Khế', 'Cái Khế', 'Quận Ninh Kiều', 'Cần Thơ', 1),
-(3, 'Trần Văn Minh', '0912345678', '23 Đường 3 Tháng 2', 'Phường 10', 'Quận 10', 'TP.HCM', 1),
-(4, 'Lê Hoài Trang', '0934567890', '56 Lý Tự Trọng', 'Phường Bến Nghé', 'Quận 1', 'TP.HCM', 1),
-(5, 'Phạm Đức Anh', '0945678901', '89 Pasteur', 'Phường 6', 'Quận 3', 'TP.HCM', 1),
-(6, 'Võ Thị Mai Hương', '0956789012', '123 Nguyễn Huệ', 'Phường Bến Nghé', 'Quận 1', 'TP.HCM', 1),
-(7, 'Hoàng Đức Mạnh', '0967890123', '456 Trần Hưng Đạo', 'Phường 11', 'Quận 5', 'TP.HCM', 1),
-(8, 'Trương Thị Hạnh', '0978901234', '789 Lê Lai', 'Phường 6', 'Quận 3', 'TP.HCM', 1);
-
--- =====================================================
--- Seed: Categories
--- =====================================================
-INSERT INTO categories (name, slug, description, icon, sort_order, is_featured, is_active) VALUES
--- Nam
-('Áo Thun Nam', 'ao-thun-nam', 'Áo thun nam các loại', 'tshirt', 1, 1, 1),
-('Áo Sơ Mi Nam', 'ao-so-mi-nam', 'Áo sơ mi nam công sở và casual', 'shirt', 2, 1, 1),
-('Áo Polo Nam', 'ao-polo-nam', 'Áo polo nam thể thao và casual', 'activity', 3, 0, 1),
-('Quần Jeans Nam', 'quan-jeans-nam', 'Quần jeans nam các form', 'square', 4, 1, 1),
-('Quần Tây Nam', 'quan-tay-nam', 'Quần âu nam công sở', 'briefcase', 5, 0, 1),
-('Quần Short Nam', 'quan-short-nam', 'Quần short nam mùa hè', 'sun', 6, 0, 1),
--- Nữ
-('Áo Blouse Nữ', 'ao-blouse-nu', 'Áo blouse nữ công sở', 'shirt', 7, 1, 1),
-('Áo Thun Nữ', 'ao-thun-nu', 'Áo thun nữ basic và trendy', 'tshirt', 8, 1, 1),
-('Áo Croptop', 'ao-croptop', 'Áo croptop nữ', 'star', 9, 0, 1),
-('Chân Váy', 'chan-vay', 'Chân váy các loại', 'triangle', 10, 1, 1),
-('Đầm Nữ', 'dam-nu', 'Đầm nữ các kiểu', 'heart', 11, 1, 1),
-('Quần Nữ', 'quan-nu', 'Quần dài, quần shorts nữ', 'square', 12, 0, 1),
--- Áo Khoác
-('Áo Khoác Nam', 'ao-khoac-nam', 'Áo khoác nam các loại', 'cloud', 13, 0, 1),
-('Áo Khoác Nữ', 'ao-khoac-nu', 'Áo khoác nữ các loại', 'cloud', 14, 0, 1),
--- Phụ Kiện
-('Túi Xách', 'tui-xach', 'Túi xách nam nữ', 'shopping-bag', 15, 1, 1),
-('Thắt Lưng', 'that-lung', 'Thắt lưng nam', 'link', 16, 0, 1),
-('Khăn Choàng', 'khan-choang', 'Khăn choàng các loại', 'wind', 17, 0, 1),
-('Mũ Nón', 'mu-non', 'Mũ nón các loại', 'circle', 18, 0, 1),
--- Set đồ
-('Set Đồ Nam', 'set-do-nam', 'Bộ đồ nam', 'users', 19, 0, 1),
-('Set Đồ Nữ', 'set-do-nu', 'Bộ đồ nữ', 'users', 20, 0, 1),
--- Trẻ Em
-('Áo Trẻ Em', 'ao-tre-em', 'Áo trẻ em các loại', 'tshirt', 21, 1, 1),
-('Quần Trẻ Em', 'quan-tre-em', 'Quần trẻ em các loại', 'square', 22, 1, 1),
-('Váy Trẻ Em', 'vay-tre-em', 'Váy trẻ em các loại', 'triangle', 23, 0, 1),
-('Đầm Trẻ Em', 'dam-tre-em', 'Đầm trẻ em các loại', 'heart', 24, 1, 1),
-('Bộ Đồ Trẻ Em', 'bo-do-tre-em', 'Bộ đồ trẻ em', 'users', 25, 0, 1);
-
--- =====================================================
--- Seed: Brands
--- =====================================================
-INSERT INTO brands (name, slug, logo, description, website, country, is_featured, is_active) VALUES
-('UrbanStyle', 'urbanstyle', NULL, 'Thời trang đường phố năng động', 'https://urbanstyle.vn', 'Việt Nam', 1, 1),
-('Elegance Pro', 'elegance-pro', NULL, 'Thời trang công sở cao cấp', 'https://elegancepro.vn', 'Việt Nam', 1, 1),
-('KStyle VN', 'kstyle-vn', NULL, 'Phong cách Hàn Quốc', 'https://kstylevn.com', 'Việt Nam', 1, 1),
-('BasicWear', 'basicwear', NULL, 'Đồ basic chất lượng cao', 'https://basicwear.vn', 'Việt Nam', 0, 1),
-('SportyFit', 'sportyfit', NULL, 'Thời trang thể thao', 'https://sportyfit.vn', 'Việt Nam', 0, 1),
-('Gentleman Club', 'gentleman-club', NULL, 'Thời trang nam giới cao cấp', 'https://gentlemanclub.vn', 'Việt Nam', 0, 1);
-
--- =====================================================
--- Seed: Sizes
--- =====================================================
-INSERT INTO sizes (name, code, group_name, sort_order, is_active) VALUES
--- Size quần áo
-('XS', 'XS', 'Áo', 1, 1),
-('S', 'S', 'Áo', 2, 1),
-('M', 'M', 'Áo', 3, 1),
-('L', 'L', 'Áo', 4, 1),
-('XL', 'XL', 'Áo', 5, 1),
-('XXL', 'XXL', 'Áo', 6, 1),
-('3XL', '3XL', 'Áo', 7, 1),
--- Size quần (số)
-('26', '26', 'Quần', 8, 1),
-('27', '27', 'Quần', 9, 1),
-('28', '28', 'Quần', 10, 1),
-('29', '29', 'Quần', 11, 1),
-('30', '30', 'Quần', 12, 1),
-('31', '31', 'Quần', 13, 1),
-('32', '32', 'Quần', 14, 1),
-('33', '33', 'Quần', 15, 1),
-('34', '34', 'Quần', 16, 1),
--- Size giày
-('38', '38', 'Giày', 17, 1),
-('39', '39', 'Giày', 18, 1),
-('40', '40', 'Giày', 19, 1),
-('41', '41', 'Giày', 20, 1),
-('42', '42', 'Giày', 21, 1),
-('43', '43', 'Giày', 22, 1),
--- Thắt lưng
-('75cm', '75', 'Thắt lưng', 23, 1),
-('80cm', '80', 'Thắt lưng', 24, 1),
-('85cm', '85', 'Thắt lưng', 25, 1),
-('90cm', '90', 'Thắt lưng', 26, 1),
-('95cm', '95', 'Thắt lưng', 27, 1),
--- Size trẻ em
-('3-4T', '3-4T', 'Trẻ em', 28, 1),
-('5-6T', '5-6T', 'Trẻ em', 29, 1),
-('7-8T', '7-8T', 'Trẻ em', 30, 1),
-('8-9T', '8-9T', 'Trẻ em', 31, 1);
-
--- =====================================================
--- Seed: Colors
--- =====================================================
-INSERT INTO colors (name, code, hex_code, sort_order, is_active) VALUES
-('Đen', 'DEN', '#000000', 1, 1),
-('Trắng', 'TRA', '#FFFFFF', 2, 1),
-('Xám', 'XAM', '#808080', 3, 1),
-('Xanh Navy', 'NAV', '#000080', 4, 1),
-('Xanh Dương', 'XDU', '#4169E1', 5, 1),
-('Xanh Cây', 'XCA', '#228B22', 6, 1),
-('Đỏ', 'DO', '#DC143C', 7, 1),
-('Hồng', 'HONG', '#FF69B4', 8, 1),
-('Hồng Phấn', 'HPHAN', '#FFD1DC', 9, 1),
-('Cam', 'CAM', '#FFA500', 10, 1),
-('Vàng', 'VANG', '#FFD700', 11, 1),
-('Kem', 'KEM', '#FFFDD0', 12, 1),
-('Be', 'BE', '#F5F5DC', 13, 1),
-('Nâu', 'NAU', '#8B4513', 14, 1),
-('Tím', 'TIM', '#800080', 15, 1),
-('Xanh Mint', 'MINT', '#98FF98', 16, 1),
-('Đen Trắng', 'DENTRA', '#000000', 17, 1),
-('Xanh Nhạt', 'XNH', '#ADD8E6', 18, 1),
-('Xanh Rêu', 'XREU', '#4A5D23', 19, 1),
-('Họa Tiết', 'HT', '#CCCCCC', 20, 1);
-
--- =====================================================
--- Seed: Products
--- NOTE: Product images are stored in product_images table, NOT in products.image_url
--- =====================================================
-INSERT INTO products (name, slug, short_description, description, price, compare_price, cost_price, sku, barcode, stock, low_stock_threshold, category_id, brand_id, gender, age_group, material, pattern, season, total_sold, is_featured, is_active) VALUES
-
--- Áo Thun Nam
-('Áo Thun Nam Basic Cotton 100%', 'ao-thun-nam-basic-cotton', 'Áo thun nam cotton 100%, form regular thoáng mát', 'Áo thun nam chất liệu cotton 100% cao cấp, mềm mại và thoáng mát. Form regular phù hợp với nhiều dáng người. Thiết kế đơn giản dễ phối hợp với mọi trang phục. Đường may tỉ mỉ, bền đẹp theo thời gian.', 299000, 350000, 150000, 'ATN-BASIC-001', '8934567890001', 150, 5, 1, 4, 'male', 'adult', '100% Cotton', 'Trơn', 'Four Seasons', 320, 1, 1),
-('Áo Thun Nam Oversize Graphic', 'ao-thun-nam-oversize-graphic', 'Áo thun oversize nam in họa tiết trendy 2026', 'Áo thun nam phong cách oversize, rộng rãi và thoải mái. Họa tiết in hình trendy, hiện đại theo xu hướng 2026. Chất liệu cotton blended mềm mại, không phai màu. Form baggy phù hợp với giới trẻ năng động.', 449000, 520000, 220000, 'ATN-OVER-001', '8934567890002', 90, 5, 1, 1, 'male', 'adult', 'Cotton Blend', 'Họa tiết', 'Four Seasons', 280, 1, 1),
-('Áo Thun Nam Minimalist', 'ao-thun-nam-minimalist', 'Áo thun nam tối giản minimalist, dễ phối', 'Áo thun nam thiết kế tối giản theo phong cách minimalist. Không họa tiết, không logo, chỉ màu cơ bản. Chất cotton 280gsm dày dặn, form vừa vặn. Lý tưởng cho những ai yêu thích sự đơn giản.', 399000, NULL, 190000, 'ATN-MINI-001', '8934567890003', 80, 5, 1, 4, 'male', 'adult', '100% Cotton 280gsm', 'Trơn', 'Four Seasons', 150, 0, 1),
-
--- Áo Sơ Mi Nam
-('Áo Sơ Mi Nam Oxford Cổ Trụ', 'ao-so-mi-nam-oxford-co-tru', 'Áo sơ mi oxford cổ trụ lịch lãm', 'Áo sơ mi nam chất liệu vải oxford cao cấp, mềm mại và thoáng khí. Cổ trụ (spread collar) lịch sự, form slim fit ôm vừa vặn. Phù hợp mặc đi làm, đi chơi hoặc các dịp quan trọng.', 559000, 680000, 280000, 'ASM-OXFORD-001', '8934567890010', 70, 5, 2, 2, 'male', 'adult', 'Vải Oxford', 'Trơn', 'Four Seasons', 195, 1, 1),
-('Áo Sơ Mi Nam Hàn Quốc', 'ao-so-mi-nam-han-quoc', 'Áo sơ mi nam phong cách Hàn Quốc oversize', 'Áo sơ mi nam phong cách Hàn Quốc (K-fashion), form oversize thoải mái. Chất liệu vải mềm mại, thoáng khí. Có thể mặc đơn giản hoặc phối layers. Phù hợp cho mùa xuân, hè.', 429000, 500000, 210000, 'ASM-KOREAN-001', '8934567890011', 95, 5, 2, 3, 'male', 'adult', 'Vải TC', 'Trơn', 'Spring', 120, 0, 1),
-
--- Áo Polo Nam
-('Áo Polo Nam Premium Pique', 'ao-polo-nam-premium-pique', 'Áo polo nam pique cotton cao cấp', 'Áo polo nam chất liệu pique cotton cao cấp, mang lại cảm giác thoáng mát suốt ngày dài. Thiết kế cổ polo trẻ trung và năng động. Đường may laser hiện đại, form regular vừa vặn.', 499000, NULL, 250000, 'APO-PREMIUM-001', '8934567890020', 100, 5, 3, 5, 'male', 'adult', 'Pique Cotton', 'Trơn', 'Summer', 180, 0, 1),
-
--- Quần Jeans Nam
-('Quần Jeans Nam Slim Fit Wash Nhẹ', 'quan-jeans-nam-slim-fit', 'Quần jeans nam slim fit wash vintage nhẹ', 'Quần jeans nam slim fit chất liệu denim co giãn thoải mái. Wash nhẹ vintage look đẹp mắt. 5 túi tiện dụng. Phù hợp mặc hàng ngày, đi chơi hay đi làm đều phong cách.', 699000, 850000, 350000, 'QJN-SLIM-001', '8934567890030', 110, 5, 4, 6, 'male', 'adult', 'Denim Co Giãn', 'Trơn', 'Four Seasons', 410, 1, 1),
-('Quần Jeans Nam Wide Leg', 'quan-jeans-nam-wide-leg', 'Quần jeans nam wide leg retro trend', 'Quần jeans nam wide leg phong cách retro trending. Chất liệu denim mềm mại, không cứng. Thiết kế dáng xuông wide leg rộng rãi, thoải mái. High waist giúp tôn eo.', 749000, 900000, 380000, 'QJN-WIDE-001', '8934567890031', 85, 5, 4, 1, 'male', 'adult', 'Denim', 'Trơn', 'Four Seasons', 290, 1, 1),
-
--- Quần Tây Nam
-('Quần Tây Nam Slim Fit', 'quan-tay-nam-slim-fit', 'Quần âu nam slim fit công sở', 'Quần tây nam form slim lịch lãm và chuyên nghiệp. Chất liệu vải wool blend mềm mại, thoáng khí, không nhăn. Thiết kế 2 nếp gấp trước sang trọng. Phù hợp đi làm công sở.', 899000, 1100000, 450000, 'QTN-SLIM-001', '8934567890040', 65, 5, 5, 2, 'male', 'adult', 'Wool Blend', 'Trơn', 'Four Seasons', 160, 0, 1),
-
--- Quần Short Nam
-('Quần Short Nam Chino Beige', 'quan-short-nam-chino-beige', 'Quần short nam chino màu beige trendy', 'Quần short nam chino màu beige trendy, phong cách. Chất liệu cotton chino cao cấp, bền đẹp. Thiết kế 2 túi bên hông. Dáng quần vừa vặn, độ dài trên gối. Phù hợp mùa hè.', 449000, NULL, 220000, 'QSN-CHINO-001', '8934567890050', 95, 5, 6, 5, 'male', 'adult', 'Cotton Chino', 'Trơn', 'Summer', 230, 1, 1),
-
--- Áo Blouse Nữ
-('Áo Blouse Nữ Lụa Cao Cấp', 'ao-blouse-nu-lua-cao-cap', 'Áo blouse nữ lụa mềm mại, sang trọng', 'Áo blouse nữ chất liệu lụa cao cấp, mềm mại và thoáng khí. Thiết kế cổ V thanh lịch, tay dài bo nhẹ. Phù hợp đi làm công sở hoặc đi chơi đều sang trọng.', 599000, 720000, 300000, 'ABN-LUA-001', '8934567890060', 75, 5, 7, 2, 'female', 'adult', 'Lụa', 'Trơn', 'Four Seasons', 350, 1, 1),
-('Áo Blouse Nữ Voan Trắng', 'ao-blouse-nu-voan-trang', 'Áo blouse nữ voan trắng thanh lịch', 'Áo blouse nữ chất liệu voan mỏng nhẹ, thoáng mát. Màu trắng thanh lịch, dễ phối với mọi trang phục. Phù hợp công sở hoặc dạo phố. Đường may tỉ mỉ, không nhăn.', 449000, 550000, 220000, 'ABN-VOAN-001', '8934567890061', 90, 5, 7, 3, 'female', 'adult', 'Voan', 'Trơn', 'Summer', 210, 0, 1),
-
--- Áo Thun Nữ
-('Áo Thun Nữ Basic Trơn', 'ao-thun-nu-basic-tron', 'Áo thun nữ basic cổ tròn trơn', 'Áo thun nữ basic cổ tròn thiết kế đơn giản, dễ phối. Chất cotton 95% co giãn tốt, thoáng mát. Form regular vừa vặn, phù hợp nhiều dáng người. Nhiều màu sắc lựa chọn.', 199000, 250000, 100000, 'ATN-BASIC-002', '8934567890070', 180, 5, 8, 4, 'female', 'adult', 'Cotton 95%', 'Trơn', 'Four Seasons', 520, 1, 1),
-('Áo Thun Nữ Tay Lửng Oversize', 'ao-thun-nu-tay-luu-oversize', 'Áo thun nữ tay lửng oversize streetwear', 'Áo thun nữ tay lửng phong cách streetwear, trẻ trung và cá tính. Form oversize rộng rãi, thoải mái. Chất cotton blend mềm mại. Kết hợp với chân váy ngắn, quần jeans đều đẹp.', 279000, NULL, 140000, 'ATN-OVER-002', '8934567890071', 120, 5, 8, 1, 'female', 'adult', 'Cotton Blend', 'Trơn', 'Four Seasons', 380, 0, 1),
-
--- Áo Croptop
-('Áo Croptop Nữ Thun Co Giãn', 'ao-croptop-nu-thun', 'Áo croptop nữ thun co giãn 4 chiều', 'Áo croptop nữ chất thun cotton co giãn 4 chiều, thoáng mát. Thiết kế croptop vừa vặn, tôn dáng. Phong cách trẻ trung, năng động. Kết hợp hoàn hảo với quần jeans cao, chân váy.', 199000, NULL, 95000, 'ACT-CROP-001', '8934567890080', 200, 5, 9, 1, 'female', 'adult', 'Thun Cotton', 'Trơn', 'Summer', 460, 1, 1),
-
--- Chân Váy
-('Chân Váy Midi Xếp Ly', 'chan-vay-midi-xep-ly', 'Chân váy midi xếp ly thanh lịch', 'Chân váy midi xếp ly thiết kế thanh lịch và sang trọng. Chất liệu voan nhún nhẹ nhàng, bay bổng. Dáng váy xếp ly đều đẹp, che khuyết điểm chân. Phù hợp đi làm, đi chơi hay dự tiệc.', 399000, 480000, 200000, 'CVM-XEP-001', '8934567890090', 80, 5, 10, 2, 'female', 'adult', 'Voan Nhún', 'Trơn', 'Four Seasons', 310, 1, 1),
-('Chân Váy Tennis Caro', 'chan-vay-tennis-caro', 'Chân váy tennis caro xinh xắn', 'Chân váy tennis chất liệu vải bông thoáng mát. Họa tiết caro trendy. Dáng ngắn trên gối, năng động. Phù hợp mặc đi chơi, dạo phố, picnic.', 299000, NULL, 150000, 'CVM-CARO-001', '8934567890091', 100, 5, 10, 4, 'female', 'adult', 'Cotton Caro', 'Caro', 'Summer', 195, 0, 1),
-
--- Đầm Nữ
-('Đầm Midi Ôm Body Sexy', 'dam-midi-ong-body', 'Đầm midi ôm body sexy quyến rũ', 'Đầm midi ôm body thiết kế sexy và quyến rũ. Chất liệu thun co giãn ôm vừa, tôn dáng. Cổ V thanh lịch. Chiều dài midi phía trên gối vừa đủ. Phù hợp đi tiệc, đi chơi hoặc date.', 699000, 850000, 350000, 'DMN-BODY-001', '8934567890100', 60, 5, 11, 1, 'female', 'adult', 'Thun Co Giãn', 'Trơn', 'Four Seasons', 380, 1, 1),
-('Đầm Xòe Mini Hoa Nhí', 'dam-xoe-mini-hoa-nhi', 'Đầm xòe mini hoa nhí xinh xắn', 'Đầm xòe mini hoa nhí thiết kế xinh xắn, trẻ trung. Chất liệu voan chiffon nhẹ nhàng, bay bổng. Phần thân trên ôm nhẹ, chân váy xòe. Phù hợp đi chơi, dạo phố, picnic hay cafe.', 499000, NULL, 250000, 'DMN-XOE-001', '8934567890101', 75, 5, 11, 3, 'female', 'adult', 'Chiffon', 'Hoa', 'Spring', 240, 0, 1),
-('Đầm Suông Dài Basic Đen', 'dam-suong-dai-basic', 'Đầm suông dài basic đen đơn giản', 'Đầm suông dài basic màu đen đơn giản nhưng không nhàm chán. Chất liệu thun modal mềm mại, thoáng khí. Thiết kế suông rộng rãi, thoải mái mọi dáng người. Cổ tròn đơn giản, tay dài.', 349000, NULL, 175000, 'DMN-SUONG-001', '8934567890102', 120, 5, 11, 4, 'female', 'adult', 'Modal', 'Trơn', 'Four Seasons', 180, 0, 1),
-
--- Quần Nữ
-('Quần Jeans Nữ Wide Leg', 'quan-jeans-nu-wide-leg', 'Quần jeans nữ wide leg retro', 'Quần jeans nữ wide leg phong cách retro trending. Chất liệu denim mềm mại, không cứng. Thiết kế dáng xuông wide leg rộng rãi, thoải mái. High waist giúp tôn eo và che khuyết điểm.', 649000, 780000, 325000, 'QJN-WIDE-002', '8934567890110', 90, 5, 12, 1, 'female', 'adult', 'Denim', 'Trơn', 'Four Seasons', 330, 1, 1),
-('Quần Dài Nữ Ống Suông', 'quan-dai-nu-ong-suong', 'Quần dài nữ ống suông linen', 'Quần dài nữ ống suông chất liệu linen thoáng mát. Thiết kế ống rộng suông, thoải mái cho mọi hoạt động. High waist có thắt lưng rời. Phù hợp mùa hè, đi biển, đi dạo phố.', 429000, 520000, 215000, 'QDN-SUONG-001', '8934567890111', 100, 5, 12, 3, 'female', 'adult', 'Linen', 'Trơn', 'Summer', 220, 0, 1),
-
--- Áo Khoác Nam
-('Áo Khoác Gió Nam Nữ Unisex', 'ao-khoac-gio-nam-nu', 'Áo khoác gió chống nước unisex', 'Áo khoác gió nam nữ phong cách sporty, chống nước hiệu quả. Chất liệu vải dù cao cấp, nhẹ và bền. Nón có dây rút điều chỉnh. Nhiều túi tiện dụng. Form unisex.', 699000, 850000, 350000, 'AKG-GIO-001', '8934567890120', 85, 5, 13, 5, 'unisex', 'adult', 'Vải Dù', 'Trơn', 'Rainy', 480, 1, 1),
-('Áo Blazer Nam Slim Fit', 'ao-blazer-nam-slim-fit', 'Áo blazer nam slim lịch lãm', 'Áo blazer nam slim fit thiết kế lịch lãm và sang trọng. Chất liệu vải wool blend cao cấp, không nhăn. Cổ blazer classic, 2 hàng cúc. Phù hợp đi làm, dự họp, đi tiệc.', 1299000, 1550000, 650000, 'ABL-SLIM-001', '8934567890121', 40, 5, 13, 2, 'male', 'adult', 'Wool Blend', 'Trơn', 'Four Seasons', 145, 1, 1),
-('Áo Khoác Denim Nam Wash Nhẹ', 'ao-khoac-denim-nam', 'Áo khoác denim wash vintage', 'Áo khoác denim nam chất liệu jeans 100% cotton, bền đẹp. Wash nhẹ vintage look thời trang. Thiết kế classic với 4 túi, cúc kim loại. Form regular vừa vặn.', 899000, 1100000, 450000, 'AKD-DENIM-001', '8934567890122', 65, 5, 13, 6, 'male', 'adult', '100% Cotton Denim', 'Trơn', 'Four Seasons', 190, 0, 1),
-
--- Áo Khoác Nữ
-('Áo Cardigan Nữ Len Mỏng', 'ao-cardigan-nu-len', 'Áo cardigan nữ len phong cách Hàn', 'Áo cardigan nữ len mỏng phong cách K-fashion Hàn Quốc. Chất liệu len acrylic nhẹ, ấm áp. Thiết kế mở phía trước, không cúc. Dáng rộng thoải mái, phối layers đẹp.', 549000, 680000, 275000, 'ACN-LEN-001', '8934567890130', 70, 5, 14, 3, 'female', 'adult', 'Len Acrylic', 'Dệt kim', 'Autumn', 260, 1, 1),
-
--- Túi Xách
-('Túi Xách Nữ Đeo Chéo Minimal', 'tui-xach-nu-deo-cheo', 'Túi xách nữ minimal da PU', 'Túi xách nữ đeo chéo phong cách minimal, hiện đại. Chất liệu da PU cao cấp, bền đẹp. Kích thước vừa đủ cho điện thoại, ví, keys. Dây đeo có thể điều chỉnh độ dài.', 449000, 550000, 225000, 'TXN-MINI-001', '8934567890140', 90, 5, 15, 1, 'female', 'adult', 'Da PU', 'Trơn', 'Four Seasons', 270, 1, 1),
-('Túi Xách Nam Đeo Chéo', 'tui-xach-nam-deo-cheo', 'Túi xách nam thể thao da', 'Túi xách nam đeo chéo phong cách thể thao, năng động. Chất liệu da tổng hợp bền, chống nước. Nhiều ngăn, đựng được laptop 14 inch. Phù hợp đi học, đi làm, du lịch.', 599000, 720000, 300000, 'TXN-SPORT-001', '8934567890141', 75, 5, 15, 5, 'male', 'adult', 'Da Tổng Hợp', 'Trơn', 'Four Seasons', 165, 0, 1),
-
--- Thắt Lưng
-('Thắt Lưng Da Bò Nam Cao Cấp', 'that-lung-da-bo-nam', 'Thắt lưng da bò 100%', 'Thắt lưng da bò nam cao cấp, da thật 100%. Khóa kim loại sang trọng, chắc chắn. Chiều rộng 3.5cm phù hợp với mọi quần. Màu đen và nâu cổ điển. Phù hợp đi làm, đi tiệc.', 599000, 720000, 300000, 'TLD-BO-001', '8934567890150', 100, 5, 16, 6, 'male', 'adult', 'Da Bò', 'Trơn', 'Four Seasons', 130, 0, 1),
-
--- Khăn Choàng
-('Khăn Choàng Nữ Lụa Cao Cấp', 'khan-choang-nu-lua', 'Khăn choàng lụa mềm mại', 'Khăn choàng nữ lụa cao cấp, mềm mại và sang trọng. Kích thước 180x70cm đa dụng. Có thể đeo nhiều kiểu: quấn cổ, choàng vai, buộc tóc. Màu pastel nhẹ nhàng.', 299000, NULL, 150000, 'KCN-LUA-001', '8934567890160', 150, 5, 17, 2, 'female', 'adult', 'Lụa', 'Trơn', 'Four Seasons', 95, 0, 1),
-
--- Mũ Nón
-('Mũ Snapback Nam Unisex', 'mu-snapback-nam', 'Mũ snapback streetwear', 'Mũ snapback nam unisex phong cách streetwear, trẻ trung. Chất liệu vải nỉ bông cao cấp, form giữ shape đẹp. Logo broider tinh tế. Có thể điều chỉnh size.', 249000, 320000, 125000, 'MSN-SNAP-001', '8934567890170', 120, 5, 18, 1, 'unisex', 'adult', 'Nỉ Bông', 'Trơn', 'Four Seasons', 175, 0, 1),
-
--- Set Đồ Nam
-('Bộ Đồ Thể Thao Nam 3 Món', 'bo-do-the-thao-nam-3-mon', 'Bộ đồ thể thao nam: áo + quần shorts + quần dài', 'Bộ đồ thể thao nam 3 món đầy đủ: áo thun thể thao, quần shorts và quần dài jogger. Chất liệu thun thể thao co giãn 4 chiều, thoáng khí. Bộ đồ tiện lợi.', 799000, 980000, 400000, 'BDT-3M-001', '8934567890180', 55, 5, 19, 5, 'male', 'adult', 'Thun Thể Thao', 'Trơn', 'Four Seasons', 120, 1, 1),
-
--- Set Đồ Nữ
-('Set Váy + Áo Blouse Nữ', 'set-vay-ao-blouse-nu', 'Set chân váy + blouse nữ công sở', 'Set váy + áo blouse nữ bộ đôi phong cách công sở sang trọng. Áo blouse lụa cao cấp, chân váy midi xếp ly thanh lịch. Bộ đồ phối hợp hoàn hảo, tiện lợi.', 899000, 1100000, 450000, 'SVA-BL-001', '8934567890190', 45, 5, 20, 2, 'female', 'adult', 'Lụa + Voan', 'Trơn', 'Four Seasons', 88, 1, 1),
-
--- Áo Trẻ Em Bé Gái
-('Áo Thun Trẻ Em Bé Gái Hoa', 'ao-thun-tre-em-be-gai-hoa', 'Áo thun trẻ em bé gái họa tiết hoa dễ thương', 'Áo thun trẻ em bé gái chất liệu cotton 100% mềm mại, thoáng mát. Họa tiết hoa in xinh xắn, trẻ trung. Form regular phù hợp bé gái 3-8 tuổi. Nhiều màu sắc tươi sáng.', 149000, 180000, 75000, 'ATT-BG-001', '8934567890200', 80, 5, 21, 4, 'female', 'kids', '100% Cotton', 'Hoa', 'Four Seasons', 195, 1, 1),
-('Áo Thun Trẻ Em Bé Trai Cars', 'ao-thun-tre-em-be-trai-cars', 'Áo thun trẻ em bé trai in hình xe', 'Áo thun trẻ em bé trai phong cách, in hình xe hot trend. Chất cotton co giãn thoải mái cho bé vui chơi. Form regular vừa vặn. Phù hợp bé trai 4-10 tuổi.', 159000, 190000, 80000, 'ATT-BT-001', '8934567890201', 75, 5, 21, 1, 'male', 'kids', 'Cotton Co Giãn', 'Họa tiết', 'Four Seasons', 210, 1, 1),
-('Áo Sơ Mi Trẻ Em Bé Gái Cổ Vuông', 'ao-so-mi-tre-em-be-gai', 'Áo sơ mi trẻ em bé gái cổ vuông xinh', 'Áo sơ mi trẻ em bé gái thiết kế cổ vuông thanh lịch. Chất vải mềm mại, không nhăn. Phù hợp đi học, đi chơi. Form regular thoải mái cho bé.', 199000, 250000, 100000, 'ASM-TE-BG-001', '8934567890202', 60, 5, 21, 2, 'female', 'kids', 'Vải Cotton', 'Trơn', 'Four Seasons', 145, 0, 1),
-
--- Quần Trẻ Em
-('Quần Jeans Trẻ Em Bé Gái', 'quan-jeans-tre-em-be-gai', 'Quần jeans trẻ em bé gái xinh xắn', 'Quần jeans trẻ em bé gái chất liệu denim mềm, co giãn nhẹ. Wash nhẹ vintage đẹp mắt. Thiết kế 2 túi. Phù hợp bé gái 3-10 tuổi mặc hàng ngày.', 249000, 300000, 125000, 'QJT-BG-001', '8934567890210', 65, 5, 22, 6, 'female', 'kids', 'Denim Mềm', 'Trơn', 'Four Seasons', 175, 1, 1),
-('Quần Short Trẻ Em Bé Trai', 'quan-short-tre-em-be-trai', 'Quần shorts trẻ em bé trai thể thao', 'Quần shorts trẻ em bé trai phong cách thể thao, năng động. Chất thun co giãn thoải mái. Cạp chun co giãn, dễ mặc. Phù hợp bé trai 4-12 tuổi mùa hè.', 179000, NULL, 90000, 'QST-BT-001', '8934567890211', 70, 5, 22, 5, 'male', 'kids', 'Thun Co Giãn', 'Trơn', 'Summer', 190, 1, 1),
-('Quần Dài Trẻ Em Cạp Chun', 'quan-dai-tre-em-cach-chun', 'Quần dài trẻ em cạp chun thoải mái', 'Quần dài trẻ em unisex cạp chun co giãn thoải mái. Chất vải cotton thoáng mát, dễ giặt. Thiết kế đơn giản, dễ phối. Phù hợp mọi hoàn cảnh.', 199000, 240000, 100000, 'QDT-CACH-001', '8934567890212', 85, 5, 22, 4, 'unisex', 'kids', 'Cotton', 'Trơn', 'Four Seasons', 155, 0, 1),
-
--- Váy Trẻ Em
-('Váy Xếp Ly Trẻ Em Bé Gái', 'vay-xep-ly-tre-em', 'Váy xếp ly trẻ em bé gái dễ thương', 'Váy xếp ly trẻ em bé gái thiết kế xinh xắn, bồng bềnh. Chất voan nhẹ nhàng, bay bổng. Phù hợp bé gái 3-8 tuổi đi chơi, đi tiệc. Nhiều màu pastel dễ thương.', 229000, 280000, 115000, 'VXL-TE-001', '8934567890220', 55, 5, 23, 3, 'female', 'kids', 'Voan', 'Xếp ly', 'Four Seasons', 165, 1, 1),
-
--- Đầm Trẻ Em
-('Đầm Xòe Trẻ Em Bé Gái', 'dam-xoe-tre-em', 'Đầm xòe trẻ em bé gái yêu', 'Đầm xòe trẻ em bé gái thiết kế bồng bềnh, yêu yêu. Chất vải mềm mại, thoáng mát. Cổ tròn bo nhẹ. Phù hợp bé gái 3-10 tuổi đi chơi, sinh nhật, đi tiệc.', 299000, 360000, 150000, 'DXL-TE-001', '8934567890230', 45, 5, 24, 3, 'female', 'kids', 'Voan Mềm', 'Xòe', 'Four Seasons', 180, 1, 1),
-('Đầm Thun Trẻ Em Bé Gái', 'dam-thun-tre-em', 'Đầm thun trẻ em bé gái basic', 'Đầm thun trẻ em bé gái form A-line đơn giản. Chất thun cotton co giãn, thoải mái cho bé vui chơi. Cổ tròn dễ mặc. Phù hợp mặc nhà, đi chơi.', 199000, NULL, 100000, 'DTT-TE-001', '8934567890231', 60, 5, 24, 4, 'female', 'kids', 'Thun Cotton', 'Trơn', 'Four Seasons', 135, 0, 1),
-
--- Bộ Đồ Trẻ Em
-('Bộ Đồ Thun Trẻ Em Bé Gái', 'bo-do-thun-tre-em-be-gai', 'Bộ đồ thun trẻ em bé gái xinh', 'Bộ đồ trẻ em bé gái gồm áo thun + chân váy. Chất thun cotton mềm mại, thoáng mát. Thiết kế phối màu xinh xắn. Phù hợp bé gái 3-7 tuổi mặc nhà, đi chơi.', 349000, 420000, 175000, 'BDT-BG-001', '8934567890240', 40, 5, 25, 4, 'female', 'kids', 'Thun Cotton', 'Trơn', 'Four Seasons', 120, 1, 1),
-('Bộ Đồ Thể Thao Trẻ Em Bé Trai', 'bo-do-the-thao-tre-em', 'Bộ đồ thể thao trẻ em bé trai', 'Bộ đồ thể thao trẻ em bé trai gồm áo thun + quần shorts. Chất thun co giãn 4 chiều, thoáng khí. Thiết kế sporty năng động. Phù hợp bé trai 4-12 tuổi vui chơi.', 299000, 360000, 150000, 'BDTT-BT-001', '8934567890241', 50, 5, 25, 5, 'male', 'kids', 'Thun Thể Thao', 'Trơn', 'Summer', 98, 0, 1);
-
--- =====================================================
--- Seed: Product Images
--- NOTE: All images stored here, NOT in products.image_url
--- =====================================================
-INSERT INTO product_images (product_id, url, alt_text, sort_order, is_primary, is_thumbnail) VALUES
--- Áo Thun Nam Basic (1)
-(1, 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&h=800&fit=crop', 'Áo Thun Nam Basic Đen', 1, 1, 1),
-(1, 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=800&h=800&fit=crop', 'Áo Thun Nam Basic Trắng', 2, 0, 0),
-(1, 'https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=800&h=800&fit=crop', 'Áo Thun Nam Basic Xám', 3, 0, 0),
--- Áo Thun Nam Oversize (2)
-(2, 'https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=800&h=800&fit=crop', 'Áo Thun Oversize Graphic', 1, 1, 1),
-(2, 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=800&h=800&fit=crop', 'Áo Thun Oversize Trắng', 2, 0, 0),
--- Áo Thun Nam Minimalist (3)
-(3, 'https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=800&h=800&fit=crop', 'Áo Thun Minimalist Đen', 1, 1, 1),
--- Áo Sơ Mi Nam Oxford (4)
-(4, 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=800&h=800&fit=crop', 'Áo Sơ Mi Oxford Trắng', 1, 1, 1),
-(4, 'https://images.unsplash.com/photo-1598033129183-c4f50c736f10?w=800&h=800&fit=crop', 'Áo Sơ Mi Oxford Xanh', 2, 0, 0),
--- Áo Sơ Mi Nam Hàn (5)
-(5, 'https://images.unsplash.com/photo-1598554747436-c9293d6a588f?w=800&h=800&fit=crop', 'Áo Sơ Mi Hàn Quốc', 1, 1, 1),
--- Áo Polo Nam (6)
-(6, 'https://images.unsplash.com/photo-1625910513413-5fc4e5e40687?w=800&h=800&fit=crop', 'Áo Polo Premium Đỏ', 1, 1, 1),
--- Quần Jeans Slim (7)
-(7, 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop', 'Quần Jeans Slim Fit', 1, 1, 1),
--- Quần Jeans Wide Leg Nam (8)
-(8, 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=800&fit=crop', 'Quần Jeans Wide Leg', 1, 1, 1),
--- Quần Tây Nam (9)
-(9, 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=800&h=800&fit=crop', 'Quần Tây Slim', 1, 1, 1),
--- Quần Short Nam (10)
-(10, 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?w=800&h=800&fit=crop', 'Quần Short Chino', 1, 1, 1),
--- Áo Blouse Nữ Lụa (11)
-(11, 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&h=800&fit=crop', 'Áo Blouse Lụa Trắng', 1, 1, 1),
-(11, 'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=800&h=800&fit=crop', 'Áo Blouse Lụa Hồng', 2, 0, 0),
--- Áo Blouse Voan (12)
-(12, 'https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=800&h=800&fit=crop', 'Áo Blouse Voan', 1, 1, 1),
--- Áo Thun Nữ Basic (13)
-(13, 'https://images.unsplash.com/photo-1503342394128-c104d54dba01?w=800&h=800&fit=crop', 'Áo Thun Nữ Basic', 1, 1, 1),
--- Áo Thun Nữ Tay Lửng (14)
-(14, 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&h=800&fit=crop', 'Áo Thun Nữ Tay Lửng', 1, 1, 1),
--- Áo Croptop (15)
-(15, 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=800&h=800&fit=crop', 'Áo Croptop', 1, 1, 1),
--- Chân Váy Midi (16)
-(16, 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=800&h=800&fit=crop', 'Chân Váy Midi Xếp Ly', 1, 1, 1),
--- Chân Váy Caro (17)
-(17, 'https://images.unsplash.com/photo-1592301933927-35b597393c0a?w=800&h=800&fit=crop', 'Chân Váy Caro', 1, 1, 1),
--- Đầm Midi Body (18)
-(18, 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=800&fit=crop', 'Đầm Midi Body Đen', 1, 1, 1),
--- Đầm Xòe (19)
-(19, 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=800&h=800&fit=crop', 'Đầm Xòe Mini', 1, 1, 1),
--- Đầm Suông (20)
-(20, 'https://images.unsplash.com/photo-1578587018452-892bacefd3f2?w=800&h=800&fit=crop', 'Đầm Suông Đen', 1, 1, 1),
--- Quần Jeans Wide Leg Nữ (21)
-(21, 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=800&fit=crop', 'Quần Jeans Wide Leg', 1, 1, 1),
--- Quần Dài Suông (22)
-(22, 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=800&h=800&fit=crop', 'Quần Dài Suông', 1, 1, 1),
--- Áo Khoác Gió (23)
-(23, 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=800&fit=crop', 'Áo Khoác Gió Đen', 1, 1, 1),
-(23, 'https://images.unsplash.com/photo-1544928716-9ef0b4c4f2b8?w=800&h=800&fit=crop', 'Áo Khoác Gió Xanh', 2, 0, 0),
--- Áo Blazer Nam (24)
-(24, 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&h=800&fit=crop', 'Áo Blazer Slim', 1, 1, 1),
--- Áo Khoác Denim (25)
-(25, 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=800&fit=crop', 'Áo Khoác Denim', 1, 1, 1),
--- Áo Cardigan Nữ (26)
-(26, 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=800&h=800&fit=crop', 'Áo Cardigan Len', 1, 1, 1),
--- Túi Xách Nữ (27)
-(27, 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=800&fit=crop', 'Túi Xách Minimal', 1, 1, 1),
--- Túi Xách Nam (28)
-(28, 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&h=800&fit=crop', 'Túi Xách Thể Thao', 1, 1, 1),
--- Thắt Lưng (29)
-(29, 'https://images.unsplash.com/photo-1624222247344-550fb60583dc?w=800&h=800&fit=crop', 'Thắt Lưng Da Bò', 1, 1, 1),
--- Khăn Choàng (30)
-(30, 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=800&h=800&fit=crop', 'Khăn Choàng Lụa', 1, 1, 1),
--- Mũ Snapback (31)
-(31, 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=800&fit=crop', 'Mũ Snapback', 1, 1, 1),
--- Bộ Đồ Thể Thao Nam (32)
-(32, 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&h=800&fit=crop', 'Bộ Đồ Thể Thao', 1, 1, 1),
--- Set Váy Blouse (33)
-(33, 'https://images.unsplash.com/photo-1551163943-3f6a855d1153?w=800&h=800&fit=crop', 'Set Váy Blouse', 1, 1, 1),
--- Áo Thun Trẻ Em Bé Gái Hoa (34)
-(34, 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=800&h=800&fit=crop', 'Áo Thun Trẻ Em Bé Gái Hoa Hồng', 1, 1, 1),
-(34, 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=800&h=800&fit=crop', 'Áo Thun Trẻ Em Bé Gái Hoa Trắng', 2, 0, 0),
--- Áo Thun Trẻ Em Bé Trai Cars (35)
-(35, 'https://images.unsplash.com/photo-1617609180892-e5f3b73d3dc4?w=800&h=800&fit=crop', 'Áo Thun Trẻ Em Bé Trai Cars Xanh', 1, 1, 1),
-(35, 'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?w=800&h=800&fit=crop', 'Áo Thun Trẻ Em Bé Trai Cars Đỏ', 2, 0, 0),
--- Áo Sơ Mi Trẻ Em Bé Gái (36)
-(36, 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=800&h=800&fit=crop', 'Áo Sơ Mi Trẻ Em Bé Gái Hồng', 1, 1, 1),
--- Quần Jeans Trẻ Em Bé Gái (37)
-(37, 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop', 'Quần Jeans Trẻ Em Bé Gái', 1, 1, 1),
--- Quần Short Trẻ Em Bé Trai (38)
-(38, 'https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?w=800&h=800&fit=crop', 'Quần Short Trẻ Em Bé Trai', 1, 1, 1),
--- Quần Dài Trẻ Em Cạp Chun (39)
-(39, 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=800&h=800&fit=crop', 'Quần Dài Trẻ Em', 1, 1, 1),
--- Váy Xếp Ly Trẻ Em (40)
-(40, 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=800&h=800&fit=crop', 'Váy Xếp Ly Trẻ Em Bé Gái', 1, 1, 1),
--- Đầm Xòe Trẻ Em (41)
-(41, 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=800&h=800&fit=crop', 'Đầm Xòe Trẻ Em Bé Gái', 1, 1, 1),
--- Đầm Thun Trẻ Em (42)
-(42, 'https://images.unsplash.com/photo-1503944583220-79d8926ad5e2?w=800&h=800&fit=crop', 'Đầm Thun Trẻ Em', 1, 1, 1),
--- Bộ Đồ Thun Trẻ Em Bé Gái (43)
-(43, 'https://images.unsplash.com/photo-1518831959646-742c15d9fb95?w=800&h=800&fit=crop', 'Bộ Đồ Thun Trẻ Em Bé Gái', 1, 1, 1),
--- Bộ Đồ Thể Thao Trẻ Em Bé Trai (44)
-(44, 'https://images.unsplash.com/photo-1617609180892-e5f3b73d3dc4?w=800&h=800&fit=crop', 'Bộ Đồ Thể Thao Trẻ Em Bé Trai', 1, 1, 1);
-
--- =====================================================
--- Seed: Product Variants
--- =====================================================
--- Áo Thun Nam Basic (product_id=1) - sizes: S(2),M(3),L(4),XL(5) - colors: Đen(1), Trắng(2), Xám(3)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(1, 2, 1, 'ATN-BC-S-DEN', '8934567890001-S-DEN', 299000, 150000, 35, 1),
-(1, 3, 1, 'ATN-BC-M-DEN', '8934567890001-M-DEN', 299000, 150000, 40, 1),
-(1, 4, 1, 'ATN-BC-L-DEN', '8934567890001-L-DEN', 299000, 150000, 35, 1),
-(1, 5, 1, 'ATN-BC-XL-DEN', '8934567890001-XL-DEN', 299000, 150000, 20, 1),
-(1, 2, 2, 'ATN-BC-S-TRA', '8934567890001-S-TRA', 299000, 150000, 30, 1),
-(1, 3, 2, 'ATN-BC-M-TRA', '8934567890001-M-TRA', 299000, 150000, 40, 1),
-(1, 4, 2, 'ATN-BC-L-TRA', '8934567890001-L-TRA', 299000, 150000, 30, 1),
-(1, 5, 2, 'ATN-BC-XL-TRA', '8934567890001-XL-TRA', 299000, 150000, 25, 1),
-(1, 2, 3, 'ATN-BC-S-XAM', '8934567890001-S-XAM', 299000, 150000, 20, 1),
-(1, 3, 3, 'ATN-BC-M-XAM', '8934567890001-M-XAM', 299000, 150000, 25, 1),
-(1, 4, 3, 'ATN-BC-L-XAM', '8934567890001-L-XAM', 299000, 150000, 20, 1),
-(1, 5, 3, 'ATN-BC-XL-XAM', '8934567890001-XL-XAM', 299000, 150000, 15, 1);
-
--- Áo Thun Nam Oversize (product_id=2) - sizes: S,M,L,XL - colors: Đen, Trắng
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(2, 2, 1, 'ATN-OV-S-DEN', '8934567890002-S-DEN', 449000, 220000, 25, 1),
-(2, 3, 1, 'ATN-OV-M-DEN', '8934567890002-M-DEN', 449000, 220000, 30, 1),
-(2, 4, 1, 'ATN-OV-L-DEN', '8934567890002-L-DEN', 449000, 220000, 25, 1),
-(2, 5, 1, 'ATN-OV-XL-DEN', '8934567890002-XL-DEN', 449000, 220000, 15, 1),
-(2, 2, 2, 'ATN-OV-S-TRA', '8934567890002-S-TRA', 449000, 220000, 20, 1),
-(2, 3, 2, 'ATN-OV-M-TRA', '8934567890002-M-TRA', 449000, 220000, 25, 1),
-(2, 4, 2, 'ATN-OV-L-TRA', '8934567890002-L-TRA', 449000, 220000, 20, 1),
-(2, 5, 2, 'ATN-OV-XL-TRA', '8934567890002-XL-TRA', 449000, 220000, 10, 1);
-
--- Áo Thun Nữ Basic (product_id=13) - sizes: XS,S,M,L - colors: Đen, Trắng, Hồng
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(13, 1, 1, 'ATN-F-XS-DEN', '8934567890070-XS-DEN', 199000, 100000, 40, 1),
-(13, 2, 1, 'ATN-F-S-DEN', '8934567890070-S-DEN', 199000, 100000, 50, 1),
-(13, 3, 1, 'ATN-F-M-DEN', '8934567890070-M-DEN', 199000, 100000, 55, 1),
-(13, 4, 1, 'ATN-F-L-DEN', '8934567890070-L-DEN', 199000, 100000, 35, 1),
-(13, 1, 2, 'ATN-F-XS-TRA', '8934567890070-XS-TRA', 199000, 100000, 35, 1),
-(13, 2, 2, 'ATN-F-S-TRA', '8934567890070-S-TRA', 199000, 100000, 45, 1),
-(13, 3, 2, 'ATN-F-M-TRA', '8934567890070-M-TRA', 199000, 100000, 50, 1),
-(13, 4, 2, 'ATN-F-L-TRA', '8934567890070-L-TRA', 199000, 100000, 30, 1),
-(13, 1, 8, 'ATN-F-XS-HONG', '8934567890070-XS-HONG', 199000, 100000, 30, 1),
-(13, 2, 8, 'ATN-F-S-HONG', '8934567890070-S-HONG', 199000, 100000, 40, 1),
-(13, 3, 8, 'ATN-F-M-HONG', '8934567890070-M-HONG', 199000, 100000, 45, 1),
-(13, 4, 8, 'ATN-F-L-HONG', '8934567890070-L-HONG', 199000, 100000, 25, 1);
-
--- Áo Croptop (product_id=15) - sizes: XS,S,M,L - colors: Đen, Trắng, Hồng
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(15, 1, 1, 'ACT-CR-XS-DEN', '8934567890080-XS-DEN', 199000, 95000, 50, 1),
-(15, 2, 1, 'ACT-CR-S-DEN', '8934567890080-S-DEN', 199000, 95000, 60, 1),
-(15, 3, 1, 'ACT-CR-M-DEN', '8934567890080-M-DEN', 199000, 95000, 65, 1),
-(15, 4, 1, 'ACT-CR-L-DEN', '8934567890080-L-DEN', 199000, 95000, 40, 1),
-(15, 1, 2, 'ACT-CR-XS-TRA', '8934567890080-XS-TRA', 199000, 95000, 40, 1),
-(15, 2, 2, 'ACT-CR-S-TRA', '8934567890080-S-TRA', 199000, 95000, 50, 1),
-(15, 3, 2, 'ACT-CR-M-TRA', '8934567890080-M-TRA', 199000, 95000, 55, 1),
-(15, 4, 2, 'ACT-CR-L-TRA', '8934567890080-L-TRA', 199000, 95000, 30, 1),
-(15, 1, 8, 'ACT-CR-XS-HONG', '8934567890080-XS-HONG', 199000, 95000, 35, 1),
-(15, 2, 8, 'ACT-CR-S-HONG', '8934567890080-S-HONG', 199000, 95000, 45, 1),
-(15, 3, 8, 'ACT-CR-M-HONG', '8934567890080-M-HONG', 199000, 95000, 50, 1),
-(15, 4, 8, 'ACT-CR-L-HONG', '8934567890080-L-HONG', 199000, 95000, 25, 1);
-
--- Quần Jeans Slim (product_id=7) - sizes: 28-34 - colors: Xanh Dương
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(7, 10, 5, 'QJN-SF-28-XD', '8934567890030-28-XD', 699000, 350000, 20, 1),
-(7, 11, 5, 'QJN-SF-29-XD', '8934567890030-29-XD', 699000, 350000, 25, 1),
-(7, 12, 5, 'QJN-SF-30-XD', '8934567890030-30-XD', 699000, 350000, 30, 1),
-(7, 13, 5, 'QJN-SF-31-XD', '8934567890030-31-XD', 699000, 350000, 25, 1),
-(7, 14, 5, 'QJN-SF-32-XD', '8934567890030-32-XD', 699000, 350000, 20, 1),
-(7, 15, 5, 'QJN-SF-33-XD', '8934567890030-33-XD', 699000, 350000, 15, 1),
-(7, 16, 5, 'QJN-SF-34-XD', '8934567890030-34-XD', 699000, 350000, 10, 1);
-
--- Quần Jeans Wide Leg Nam (product_id=8) - sizes: 28-34 - colors: Xanh Dương
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(8, 10, 5, 'QJN-WL-28-XD', '8934567890031-28-XD', 749000, 380000, 15, 1),
-(8, 11, 5, 'QJN-WL-29-XD', '8934567890031-29-XD', 749000, 380000, 20, 1),
-(8, 12, 5, 'QJN-WL-30-XD', '8934567890031-30-XD', 749000, 380000, 25, 1),
-(8, 13, 5, 'QJN-WL-31-XD', '8934567890031-31-XD', 749000, 380000, 20, 1),
-(8, 14, 5, 'QJN-WL-32-XD', '8934567890031-32-XD', 749000, 380000, 15, 1),
-(8, 15, 5, 'QJN-WL-33-XD', '8934567890031-33-XD', 749000, 380000, 10, 1),
-(8, 16, 5, 'QJN-WL-34-XD', '8934567890031-34-XD', 749000, 380000, 8, 1);
-
--- Áo Khoác Gió (product_id=23) - sizes: S,M,L,XL,XXL - colors: Đen, Xanh Navy
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(23, 2, 1, 'AKG-GIO-S-DEN', '8934567890120-S-DEN', 699000, 350000, 20, 1),
-(23, 3, 1, 'AKG-GIO-M-DEN', '8934567890120-M-DEN', 699000, 350000, 25, 1),
-(23, 4, 1, 'AKG-GIO-L-DEN', '8934567890120-L-DEN', 699000, 350000, 20, 1),
-(23, 5, 1, 'AKG-GIO-XL-DEN', '8934567890120-XL-DEN', 699000, 350000, 15, 1),
-(23, 6, 1, 'AKG-GIO-XXL-DEN', '8934567890120-XXL-DEN', 699000, 350000, 10, 1),
-(23, 2, 4, 'AKG-GIO-S-NAV', '8934567890120-S-NAV', 699000, 350000, 15, 1),
-(23, 3, 4, 'AKG-GIO-M-NAV', '8934567890120-M-NAV', 699000, 350000, 20, 1),
-(23, 4, 4, 'AKG-GIO-L-NAV', '8934567890120-L-NAV', 699000, 350000, 15, 1),
-(23, 5, 4, 'AKG-GIO-XL-NAV', '8934567890120-XL-NAV', 699000, 350000, 10, 1),
-(23, 6, 4, 'AKG-GIO-XXL-NAV', '8934567890120-XXL-NAV', 699000, 350000, 5, 1);
-
--- Thắt Lưng (product_id=29) - sizes: 75,80,85,90,95 - colors: Đen, Nâu
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(29, 23, 1, 'TLD-BO-75-DEN', '8934567890150-75-DEN', 599000, 300000, 25, 1),
-(29, 24, 1, 'TLD-BO-80-DEN', '8934567890150-80-DEN', 599000, 300000, 30, 1),
-(29, 25, 1, 'TLD-BO-85-DEN', '8934567890150-85-DEN', 599000, 300000, 25, 1),
-(29, 26, 1, 'TLD-BO-90-DEN', '8934567890150-90-DEN', 599000, 300000, 15, 1),
-(29, 27, 1, 'TLD-BO-95-DEN', '8934567890150-95-DEN', 599000, 300000, 10, 1),
-(29, 23, 14, 'TLD-BO-75-NAU', '8934567890150-75-NAU', 599000, 300000, 20, 1),
-(29, 24, 14, 'TLD-BO-80-NAU', '8934567890150-80-NAU', 599000, 300000, 25, 1),
-(29, 25, 14, 'TLD-BO-85-NAU', '8934567890150-85-NAU', 599000, 300000, 20, 1),
-(29, 26, 14, 'TLD-BO-90-NAU', '8934567890150-90-NAU', 599000, 300000, 12, 1),
-(29, 27, 14, 'TLD-BO-95-NAU', '8934567890150-95-NAU', 599000, 300000, 8, 1);
-
--- Túi Xách Nữ (product_id=27) - no size - colors: Đen, Be
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(27, NULL, 1, 'TXN-MINI-DEN', '8934567890140-DEN', 449000, 225000, 50, 1),
-(27, NULL, 13, 'TXN-MINI-BE', '8934567890140-BE', 449000, 225000, 45, 1);
-
--- Khăn Choàng (product_id=30) - no size - colors: Hồng Phấn, Kem
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(30, NULL, 9, 'KCN-LUA-HP', '8934567890160-HP', 299000, 150000, 60, 1),
-(30, NULL, 12, 'KCN-LUA-KEM', '8934567890160-KEM', 299000, 150000, 55, 1);
-
--- Mũ Snapback (product_id=31) - no size - colors: Đen, Xám
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(31, NULL, 1, 'MSN-SNAP-DEN', '8934567890170-DEN', 249000, 125000, 60, 1),
-(31, NULL, 3, 'MSN-SNAP-XAM', '8934567890171-XAM', 249000, 125000, 50, 1);
-
--- Áo Thun Trẻ Em Bé Gái Hoa (product_id=34) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Hồng(8), Trắng(2)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(34, 28, 8, 'ATT-BG-HOA-3T-HG', '8934567890200-3T-HG', 149000, 75000, 25, 1),
-(34, 29, 8, 'ATT-BG-HOA-5T-HG', '8934567890200-5T-HG', 149000, 75000, 30, 1),
-(34, 30, 8, 'ATT-BG-HOA-7T-HG', '8934567890200-7T-HG', 149000, 75000, 25, 1),
-(34, 28, 2, 'ATT-BG-HOA-3T-TRA', '8934567890200-3T-TRA', 149000, 75000, 20, 1),
-(34, 29, 2, 'ATT-BG-HOA-5T-TRA', '8934567890200-5T-TRA', 149000, 75000, 25, 1),
-(34, 30, 2, 'ATT-BG-HOA-7T-TRA', '8934567890200-7T-TRA', 149000, 75000, 20, 1);
-
--- Áo Thun Trẻ Em Bé Trai Cars (product_id=35) - sizes: 5-6T(29), 7-8T(30), 8-9T(31) - colors: Xanh Dương(5), Đỏ(7)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(35, 29, 5, 'ATT-BT-CARS-5T-XD', '8934567890201-5T-XD', 159000, 80000, 20, 1),
-(35, 30, 5, 'ATT-BT-CARS-7T-XD', '8934567890201-7T-XD', 159000, 80000, 25, 1),
-(35, 31, 5, 'ATT-BT-CARS-8T-XD', '8934567890201-8T-XD', 159000, 80000, 20, 1),
-(35, 29, 7, 'ATT-BT-CARS-5T-DO', '8934567890201-5T-DO', 159000, 80000, 15, 1),
-(35, 30, 7, 'ATT-BT-CARS-7T-DO', '8934567890201-7T-DO', 159000, 80000, 20, 1);
-
--- Áo Sơ Mi Trẻ Em Bé Gái (product_id=36) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Hồng Phấn(9), Kem(12)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(36, 28, 9, 'ASM-TE-BG-3T-HP', '8934567890202-3T-HP', 199000, 100000, 20, 1),
-(36, 29, 9, 'ASM-TE-BG-5T-HP', '8934567890202-5T-HP', 199000, 100000, 25, 1),
-(36, 30, 9, 'ASM-TE-BG-7T-HP', '8934567890202-7T-HP', 199000, 100000, 20, 1),
-(36, 28, 12, 'ASM-TE-BG-3T-KEM', '8934567890202-3T-KEM', 199000, 100000, 15, 1),
-(36, 29, 12, 'ASM-TE-BG-5T-KEM', '8934567890202-5T-KEM', 199000, 100000, 20, 1);
-
--- Quần Jeans Trẻ Em Bé Gái (product_id=37) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Xanh Nhạt(18), Hồng(8)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(37, 28, 18, 'QJT-BG-3T-XNH', '8934567890210-3T-XNH', 249000, 125000, 20, 1),
-(37, 29, 18, 'QJT-BG-5T-XNH', '8934567890210-5T-XNH', 249000, 125000, 25, 1),
-(37, 30, 18, 'QJT-BG-7T-XNH', '8934567890210-7T-XNH', 249000, 125000, 20, 1),
-(37, 28, 8, 'QJT-BG-3T-HG', '8934567890210-3T-HG', 249000, 125000, 15, 1),
-(37, 29, 8, 'QJT-BG-5T-HG', '8934567890210-5T-HG', 249000, 125000, 18, 1);
-
--- Quần Short Trẻ Em Bé Trai (product_id=38) - sizes: 5-6T(29), 7-8T(30), 8-9T(31) - colors: Xanh Dương(5), Đỏ(7)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(38, 29, 5, 'QST-BT-5T-XD', '8934567890211-5T-XD', 179000, 90000, 22, 1),
-(38, 30, 5, 'QST-BT-7T-XD', '8934567890211-7T-XD', 179000, 90000, 28, 1),
-(38, 31, 5, 'QST-BT-8T-XD', '8934567890211-8T-XD', 179000, 90000, 25, 1),
-(38, 29, 7, 'QST-BT-5T-DO', '8934567890211-5T-DO', 179000, 90000, 18, 1),
-(38, 30, 7, 'QST-BT-7T-DO', '8934567890211-7T-DO', 179000, 90000, 22, 1);
-
--- Quần Dài Trẻ Em Cạp Chun (product_id=39) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Xám(3), Đen(1)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(39, 28, 3, 'QDT-CACH-3T-XAM', '8934567890212-3T-XAM', 199000, 100000, 28, 1),
-(39, 29, 3, 'QDT-CACH-5T-XAM', '8934567890212-5T-XAM', 199000, 100000, 32, 1),
-(39, 30, 3, 'QDT-CACH-7T-XAM', '8934567890212-7T-XAM', 199000, 100000, 28, 1),
-(39, 28, 1, 'QDT-CACH-3T-DEN', '8934567890212-3T-DEN', 199000, 100000, 22, 1),
-(39, 29, 1, 'QDT-CACH-5T-DEN', '8934567890212-5T-DEN', 199000, 100000, 25, 1);
-
--- Váy Xếp Ly Trẻ Em (product_id=40) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Hồng Phấn(9), Kem(12)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(40, 28, 9, 'VXL-TE-3T-HP', '8934567890220-3T-HP', 229000, 115000, 18, 1),
-(40, 29, 9, 'VXL-TE-5T-HP', '8934567890220-5T-HP', 229000, 115000, 22, 1),
-(40, 30, 9, 'VXL-TE-7T-HP', '8934567890220-7T-HP', 229000, 115000, 18, 1),
-(40, 28, 12, 'VXL-TE-3T-KEM', '8934567890220-3T-KEM', 229000, 115000, 15, 1),
-(40, 29, 12, 'VXL-TE-5T-KEM', '8934567890220-5T-KEM', 229000, 115000, 18, 1);
-
--- Đầm Xòe Trẻ Em (product_id=41) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Hồng(8), Trắng(2)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(41, 28, 8, 'DXL-TE-3T-HG', '8934567890230-3T-HG', 299000, 150000, 15, 1),
-(41, 29, 8, 'DXL-TE-5T-HG', '8934567890230-5T-HG', 299000, 150000, 18, 1),
-(41, 30, 8, 'DXL-TE-7T-HG', '8934567890230-7T-HG', 299000, 150000, 15, 1),
-(41, 28, 2, 'DXL-TE-3T-TRA', '8934567890230-3T-TRA', 299000, 150000, 12, 1),
-(41, 29, 2, 'DXL-TE-5T-TRA', '8934567890230-5T-TRA', 299000, 150000, 15, 1);
-
--- Đầm Thun Trẻ Em (product_id=42) - sizes: 3-4T(28), 5-6T(29), 7-8T(30) - colors: Hồng Phấn(9), Xanh Mint(16)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(42, 28, 9, 'DTT-TE-3T-HP', '8934567890231-3T-HP', 199000, 100000, 20, 1),
-(42, 29, 9, 'DTT-TE-5T-HP', '8934567890231-5T-HP', 199000, 100000, 25, 1),
-(42, 30, 9, 'DTT-TE-7T-HP', '8934567890231-7T-HP', 199000, 100000, 20, 1),
-(42, 28, 16, 'DTT-TE-3T-MINT', '8934567890231-3T-MINT', 199000, 100000, 15, 1),
-(42, 29, 16, 'DTT-TE-5T-MINT', '8934567890231-5T-MINT', 199000, 100000, 18, 1);
-
--- Bộ Đồ Thun Trẻ Em Bé Gái (product_id=43) - sizes: 3-4T(28), 5-6T(29) - colors: Hồng(8), Trắng(2)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(43, 28, 8, 'BDT-BG-3T-HG', '8934567890240-3T-HG', 349000, 175000, 13, 1),
-(43, 29, 8, 'BDT-BG-5T-HG', '8934567890240-5T-HG', 349000, 175000, 16, 1),
-(43, 28, 2, 'BDT-BG-3T-TRA', '8934567890240-3T-TRA', 349000, 175000, 12, 1),
-(43, 29, 2, 'BDT-BG-5T-TRA', '8934567890240-5T-TRA', 349000, 175000, 14, 1);
-
--- Bộ Đồ Thể Thao Trẻ Em Bé Trai (product_id=44) - sizes: 5-6T(29), 7-8T(30), 8-9T(31) - colors: Xanh Dương(5), Đỏ(7)
-INSERT INTO product_variants (product_id, size_id, color_id, sku, barcode, price, cost_price, stock, is_active) VALUES
-(44, 29, 5, 'BDTT-BT-5T-XD', '8934567890241-5T-XD', 299000, 150000, 16, 1),
-(44, 30, 5, 'BDTT-BT-7T-XD', '8934567890241-7T-XD', 299000, 150000, 20, 1),
-(44, 31, 5, 'BDTT-BT-8T-XD', '8934567890241-8T-XD', 299000, 150000, 16, 1),
-(44, 29, 7, 'BDTT-BT-5T-DO', '8934567890241-5T-DO', 299000, 150000, 14, 1),
-(44, 30, 7, 'BDTT-BT-7T-DO', '8934567890241-7T-DO', 299000, 150000, 18, 1);
-
--- =====================================================
--- Seed: Shipping Providers
--- =====================================================
-INSERT INTO shipping_providers (name, code, logo, website, tracking_url, is_active, sort_order) VALUES
-('Giao hàng nhanh (GHN)', 'GHN', NULL, 'https://ghn.vn', 'https://track.ghn.vn/?code=', 1, 1),
-('Giao hàng tiết kiệm (GHTK)', 'GHTK', NULL, 'https://ghtk.vn', 'https://track.ghtk.vn/?code=', 1, 2),
-('Viettel Post', 'VIETTEL', NULL, 'https://viettelpost.com.vn', 'https://www.viettelpost.com.vn/track/', 1, 3),
-('VNPost', 'VNPOST', NULL, 'https://www.vnpost.vn', 'https://www.vnpost.vn/track/', 1, 4);
-
--- =====================================================
--- Seed: Shipping Zones
--- =====================================================
-INSERT INTO shipping_zones (name, cities, is_active, sort_order) VALUES
-('TP.HCM & Lân cận', '["TP.HCM", "Bình Dương", "Đồng Nai", "Long An"]', 1, 1),
-('Hà Nội & Lân cận', '["Hà Nội", "Hải Phòng", "Hưng Yên", "Bắc Ninh"]', 1, 2),
-('Miền Trung', '["Đà Nẵng", "Hội An", "Huế", "Nha Trang", "Quy Nhơn"]', 1, 3),
-('Miền Tây', '["Cần Thơ", "An Giang", "Kiên Giang", "Tiền Giang", "Đồng Tháp"]', 1, 4),
-('Tây Nguyên', '["Đà Lạt", "Pleiku", "Buôn Ma Thuột"]', 1, 5),
-('Miền Bắc', '["Hải Phòng", "Nam Định", "Thái Bình", "Nghệ An", "Thanh Hóa"]', 1, 6),
-('Toàn quốc', '["Toàn quốc"]', 1, 7);
-
--- =====================================================
--- Seed: Shipping Fees
--- =====================================================
-INSERT INTO shipping_fees (provider_id, zone_id, min_weight, max_weight, base_fee, fee_per_kg, estimated_days_min, estimated_days_max, is_active) VALUES
--- GHN
-(1, 1, 0, 5, 25000, 3000, 1, 2, 1),
-(1, 2, 0, 5, 35000, 4000, 2, 3, 1),
-(1, 3, 0, 5, 45000, 5000, 3, 5, 1),
-(1, 4, 0, 5, 40000, 5000, 2, 4, 1),
-(1, 5, 0, 5, 55000, 6000, 4, 6, 1),
-(1, 6, 0, 5, 50000, 5500, 3, 5, 1),
-(1, 7, 0, 5, 55000, 6000, 4, 7, 1),
--- GHTK
-(2, 1, 0, 5, 22000, 2500, 1, 2, 1),
-(2, 2, 0, 5, 33000, 3500, 2, 3, 1),
-(2, 3, 0, 5, 44000, 4500, 3, 5, 1),
-(2, 4, 0, 5, 38000, 4500, 2, 4, 1),
-(2, 5, 0, 5, 55000, 5500, 4, 6, 1),
-(2, 6, 0, 5, 48000, 5000, 3, 5, 1),
-(2, 7, 0, 5, 55000, 5500, 4, 7, 1);
-
--- =====================================================
--- Seed: Payment Methods
--- =====================================================
-INSERT INTO payment_methods (code, name, description, icon, is_online, is_active, sort_order, config) VALUES
-('COD', 'Thanh toán khi nhận hàng (COD)', 'Thanh toán bằng tiền mặt khi nhận được hàng', 'cash', 0, 1, 1, '{"fee": 0}'),
-('BANK_TRANSFER', 'Chuyển khoản ngân hàng', 'Chuyển khoản trực tiếp vào tài khoản ngân hàng của cửa hàng', 'credit-card', 0, 1, 2, '{"account_number": "1234567890", "bank_name": "Vietcombank"}'),
-('VNPAY', 'Thanh toán qua VNPay', 'Thanh toán trực tuyến qua cổng thanh toán VNPay', 'credit-card', 1, 1, 3, '{"merchant_id": "VNPAY123", "return_url": "/payment/vnpay/return"}'),
-('MOMO', 'Thanh toán MoMo', 'Thanh toán qua ví điện tử MoMo', 'wallet', 1, 1, 4, '{"partner_code": "MOMO123", "return_url": "/payment/momo/return"}');
-
--- =====================================================
--- Seed: Coupons
--- =====================================================
-INSERT INTO coupons (code, name, description, coupon_type, discount_type, discount_value, max_discount_amount, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public) VALUES
-('SUMMER20', 'Summer Sale 20%', 'Giảm 20% cho đơn hàng từ 500K', 'general', 'percentage', 20, 200000, 500000, 200, 1, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1),
-('NEWCUSTOMER', 'Khách hàng mới', 'Giảm 50K cho khách hàng mới', 'first_order', 'fixed_amount', 50000, NULL, 300000, 100, 1, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1),
-('VIP100K', 'VIP 100K', 'Giảm 100K cho đơn hàng từ 1 triệu', 'general', 'fixed_amount', 100000, NULL, 1000000, 50, 2, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1),
-('FLASH15', 'Flash Sale 15%', 'Flash sale giảm 15% thứ 6', 'general', 'percentage', 15, 150000, 0, 300, 1, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1),
-('FREESHIP', 'Miễn phí vận chuyển', 'Miễn phí ship cho đơn từ 800K', 'shipping', 'percentage', 100, NULL, 800000, 100, 1, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 1);
-
--- =====================================================
--- Seed: Promotions
--- =====================================================
-INSERT INTO promotions (name, slug, description, promotion_type, discount_type, discount_value, max_discount_amount, valid_from, valid_until, is_active, is_featured, priority) VALUES
-('Summer Sale 2026', 'summer-sale-2026', 'Ưu đãi mùa hè - Giảm đến 30%', 'flash_sale', 'percentage', 30, 500000, '2026-05-01 00:00:00', '2026-08-31 23:59:59', 1, 1, 1),
-('Mua 2 Tặng 1', 'mua-2-tang-1', 'Mua 2 sản phẩm cùng loại tặng 1', 'buy_x_get_y', 'percentage', 100, NULL, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 0, 2),
-('Combo Tiết Kiệm', 'combo-tiet-kiem', 'Mua bộ đồ thể thao tiết kiệm 20%', 'bundle', 'percentage', 20, NULL, '2026-01-01 00:00:00', '2026-12-31 23:59:59', 1, 0, 3);
-
--- =====================================================
--- Seed: Expense Categories
--- =====================================================
-INSERT INTO expense_categories (name, code, description, parent_id, is_system, is_active) VALUES
-('Nhập hàng', 'IMPORT', 'Chi phí nhập hàng từ nhà cung cấp', NULL, 1, 1),
-('Mặt hàng', 'GOODS', 'Chi phí mặt hàng', 1, 0, 1),
-('Vận chuyển', 'SHIPPING', 'Chi phí vận chuyển', 1, 0, 1),
-('Thuế', 'TAX', 'Chi phí thuế', NULL, 1, 1),
-('Thuế nhập khẩu', 'IMPORT_TAX', 'Thuế nhập khẩu hàng hóa', 4, 0, 1),
-('VAT', 'VAT', 'Thuế VAT', 4, 0, 1),
-('Nhân sự', 'HR', 'Chi phí nhân sự', NULL, 1, 1),
-('Lương', 'SALARY', 'Chi phí lương', 7, 0, 1),
-('Thưởng', 'BONUS', 'Chi phí thưởng', 7, 0, 1),
-('Văn phòng', 'OFFICE', 'Chi phí văn phòng', NULL, 1, 1),
-('Điện nước', 'UTILITY', 'Chi phí điện nước', 10, 0, 1),
-('Thuê mặt bằng', 'RENT', 'Chi phí thuê mặt bằng', 10, 0, 1),
-('Marketing', 'MARKETING', 'Chi phí marketing', NULL, 1, 1),
-('Quảng cáo', 'ADS', 'Chi phí quảng cáo', 13, 0, 1),
-('Khác', 'OTHER', 'Chi phí khác', NULL, 1, 1);
-
--- =====================================================
--- Seed: Product Reviews
--- NOTE: includes is_active column
--- =====================================================
-INSERT INTO product_reviews (product_id, user_id, order_id, rating, title, content, pros, cons, size_rating, is_verified_purchase, is_approved, admin_reply, helpful_count, is_active, created_at) VALUES
-(1, 2, NULL, 5, 'Áo đẹp, chất lượng tốt', 'Áo mặc rất thoáng, chất cotton mềm mại. Đường may đẹp, không bị tuột chỉ. Đóng gói cẩn thận. Shop tư vấn nhiệt tình. Sẽ ủng hộ tiếp!', 'Chất vải tốt, thoáng mát', 'Màu hơi nhạt hơn ảnh', 'fit', 1, 1, 'Cảm ơn bạn đã tin tưởng shop!', 15, 1, '2026-03-01 10:30:00'),
-(1, 3, NULL, 4, 'Sản phẩm tốt, giao nhanh', 'Áo đẹp như hình, giao hàng nhanh trong 2 ngày. Mặc vừa form người. Điểm trừ vì màu hơi bị lem nhẹ khi giặt lần đầu.', 'Form đẹp, giá hợp lý', 'Màu lem nhẹ khi giặt', 'fit', 1, 1, 'Bạn nên giặt riêng lần đầu nhé!', 8, 1, '2026-03-05 14:20:00'),
-(7, 4, NULL, 5, 'Quần jeans đẹp như mẫu', 'Quần jeans slim fit mặc rất vừa, ôm chân đẹp. Wash màu đẹp, không phai. Đi làm hay đi chơi đều phù hợp. Đã mua 2 cái!', 'Form đẹp, chất tốt', 'Hơi cứng lần đầu', 'fit', 1, 1, 'Cảm ơn bạn đã ủng hộ!', 22, 1, '2026-03-10 09:15:00'),
-(15, 5, NULL, 4, 'Croptop xinh, giá ok', 'Áo croptop mặc xinh lắm, form đẹp tôn dáng. Phù hợp với giá tiền. Shop tặng kèm sticker dễ thương. Giao hàng nhanh.', 'Form đẹp, dễ phối', 'Hơi mỏng', 'large', 1, 1, 'Cảm ơn bạn!', 12, 1, '2026-03-15 16:45:00'),
-(18, 6, NULL, 5, 'Đầm body quyến rũ', 'Đầm midi body mặc vào siêu quyến rũ luôn! Chất thun co giãn tốt, ôm body hoàn hảo. Đi tiệc được, đi chơi cũng được. Đã có 3 màu!', 'Ôm body, co giãn tốt', 'Cổ hơi rộng', 'fit', 1, 1, 'Chúc bạn luôn xinh đẹp!', 30, 1, '2026-03-20 11:30:00'),
-(23, 7, NULL, 5, 'Áo khoác gió chất lượng', 'Áo khoác gió chống nước tốt, mặc vào mưa nhẹ không thấm. Form unisex nên mua cho chồng cùng mặc được. Rất hài lòng!', 'Chống nước tốt, form đẹp', 'Hơi nặng', 'fit', 1, 1, 'Cảm ơn bạn đã tin tưởng!', 18, 1, '2026-03-25 08:20:00');
-
--- =====================================================
--- Seed: Orders
--- NOTE: includes all order columns used in code
--- =====================================================
-INSERT INTO orders (order_number, user_id, status, customer_name, customer_email, customer_phone, shipping_full_address, shipping_city, shipping_district, shipping_address, subtotal, shipping_fee, discount_amount, discount_code, total_price, payment_method, payment_status, points_earned, points_used, recipient_name, recipient_phone, ward, district, city, created_at) VALUES
-('ORD-20260301-001', 2, 'delivered', 'Nguyễn Thị Lan', 'lan.nguyen@email.com', '0901234567', '78 Cái Khế, Quận Ninh Kiều, Cần Thơ', 'Cần Thơ', 'Quận Ninh Kiều', '78 Cái Khế', 1497000, 45000, 0, NULL, 1542000, 'cod', 'paid', 550, 0, 'Nguyễn Thị Lan', '0901234567', 'Cái Khế', 'Quận Ninh Kiều', 'Cần Thơ', '2026-03-01 10:30:00'),
-('ORD-20260305-002', 3, 'delivered', 'Trần Văn Minh', 'minh.tran@email.com', '0912345678', '23 Đường 3 Tháng 2, Quận 10, TP.HCM', 'TP.HCM', 'Quận 10', '23 Đường 3 Tháng 2', 2097000, 25000, 209700, 'SUMMER20', 1498000, 'vnpay', 'paid', 890, 0, 'Trần Văn Minh', '0912345678', 'Phường 10', 'Quận 10', 'TP.HCM', '2026-03-05 14:20:00'),
-('ORD-20260310-003', 4, 'shipped', 'Lê Hoài Trang', 'trang.le@email.com', '0934567890', '56 Lý Tự Trọng, Quận 1, TP.HCM', 'TP.HCM', 'Quận 1', '56 Lý Tự Trọng', 599000, 25000, 0, NULL, 624000, 'cod', 'paid', 180, 0, 'Lê Hoài Trang', '0934567890', 'Phường Bến Nghé', 'Quận 1', 'TP.HCM', '2026-03-10 09:15:00'),
-('ORD-20260315-004', 5, 'processing', 'Phạm Đức Anh', 'anh.pham@email.com', '0945678901', '89 Pasteur, Quận 3, TP.HCM', 'TP.HCM', 'Quận 3', '89 Pasteur', 1197000, 25000, 0, NULL, 1222000, 'cod', 'paid', 420, 0, 'Phạm Đức Anh', '0945678901', 'Phường 6', 'Quận 3', 'TP.HCM', '2026-03-15 16:45:00'),
-('ORD-20260320-005', 6, 'confirmed', 'Võ Thị Mai Hương', 'huong.vo@email.com', '0956789012', '123 Nguyễn Huệ, Quận 1, TP.HCM', 'TP.HCM', 'Quận 1', '123 Nguyễn Huệ', 699000, 25000, 50000, 'NEWCUSTOMER', 674000, 'momo', 'paid', 320, 0, 'Võ Thị Mai Hương', '0956789012', 'Phường Bến Nghé', 'Quận 1', 'TP.HCM', '2026-03-20 11:30:00'),
-('ORD-20260325-006', 7, 'pending', 'Hoàng Đức Mạnh', 'manh.hoang@email.com', '0967890123', '456 Trần Hưng Đạo, Quận 5, TP.HCM', 'TP.HCM', 'Quận 5', '456 Trần Hưng Đạo', 1697000, 25000, 0, NULL, 1722000, 'cod', 'unpaid', 750, 0, 'Hoàng Đức Mạnh', '0967890123', 'Phường 11', 'Quận 5', 'TP.HCM', '2026-03-25 08:20:00'),
-('ORD-20260401-007', 8, 'pending', 'Trương Thị Hạnh', 'hanh.truong@email.com', '0978901234', '789 Lê Lai, Quận 3, TP.HCM', 'TP.HCM', 'Quận 3', '789 Lê Lai', 997000, 25000, 0, NULL, 1022000, 'cod', 'unpaid', 210, 0, 'Trương Thị Hạnh', '0978901234', 'Phường 6', 'Quận 3', 'TP.HCM', '2026-04-01 16:30:00');
-
--- =====================================================
--- Seed: Order Items
--- =====================================================
-INSERT INTO order_items (order_id, product_id, variant_id, product_name, product_sku, product_image, size_name, color_name, unit_price, quantity, discount_amount, total_price) VALUES
--- Order 1
-(1, 1, 2, 'Áo Thun Nam Basic Cotton 100%', 'ATN-BC-M-DEN', 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800&h=800&fit=crop', 'M', 'Đen', 299000, 2, 0, 598000),
-(1, 13, NULL, 'Áo Thun Nữ Basic Trơn', 'ATN-BASIC-002', 'https://images.unsplash.com/photo-1503342394128-c104d54dba01?w=800&h=800&fit=crop', 'S', 'Trắng', 199000, 2, 0, 398000),
-(1, 15, NULL, 'Áo Croptop Nữ Thun Co Giãn', 'ACT-CROP-001', 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=800&h=800&fit=crop', 'M', 'Đen', 199000, 1, 0, 199000),
-(1, 31, NULL, 'Mũ Snapback Nam Unisex', 'MSN-SNAP-001', 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?w=800&h=800&fit=crop', NULL, 'Đen', 249000, 1, 0, 249000),
--- Order 2
-(2, 7, NULL, 'Quần Jeans Nam Slim Fit Wash Nhẹ', 'QJN-SLIM-001', 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=800&fit=crop', '30', 'Xanh Dương', 699000, 1, 139800, 559200),
-(2, 24, NULL, 'Áo Blazer Nam Slim Fit', 'ABL-SLIM-001', 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=800&h=800&fit=crop', 'M', 'Xám', 1299000, 1, 259800, 1039200),
--- Order 3
-(3, 18, NULL, 'Đầm Midi Ôm Body Sexy', 'DMN-BODY-001', 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&h=800&fit=crop', 'M', 'Đen', 699000, 1, 0, 699000),
--- Order 4
-(4, 11, NULL, 'Áo Blouse Nữ Lụa Cao Cấp', 'ABN-LUA-001', 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&h=800&fit=crop', 'M', 'Trắng', 599000, 1, 0, 599000),
-(4, 16, NULL, 'Chân Váy Midi Xếp Ly', 'CVM-XEP-001', 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=800&h=800&fit=crop', 'M', 'Đen', 399000, 1, 0, 399000),
-(4, 27, NULL, 'Túi Xách Nữ Đeo Chéo Minimal', 'TXN-MINI-001', 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&h=800&fit=crop', NULL, 'Đen', 449000, 1, 0, 449000),
--- Order 5
-(5, 23, NULL, 'Áo Khoác Gió Nam Nữ Unisex', 'AKG-GIO-001', 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&h=800&fit=crop', 'M', 'Xanh Navy', 699000, 1, 0, 699000),
--- Order 6
-(6, 2, NULL, 'Áo Thun Nam Oversize Graphic', 'ATN-OVER-001', 'https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=800&h=800&fit=crop', 'L', 'Đen', 449000, 2, 0, 898000),
-(6, 8, NULL, 'Quần Jeans Nam Wide Leg', 'QJN-WIDE-001', 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800&h=800&fit=crop', '30', 'Xanh Dương', 749000, 1, 0, 749000),
--- Order 7
-(7, 13, NULL, 'Áo Thun Nữ Basic Trơn', 'ATN-BASIC-002', 'https://images.unsplash.com/photo-1503342394128-c104d54dba01?w=800&h=800&fit=crop', 'M', 'Trắng', 199000, 3, 0, 597000),
-(7, 30, NULL, 'Khăn Choàng Nữ Lụa Cao Cấp', 'KCN-LUA-001', 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=800&h=800&fit=crop', NULL, 'Kem', 299000, 1, 0, 299000);
-
--- =====================================================
--- Seed: Wishlists
--- NOTE: uses product_id (not stock_quantity)
--- =====================================================
-INSERT INTO wishlists (user_id, product_id, created_at) VALUES
-(2, 7, '2026-03-05 16:00:00'),
-(2, 18, '2026-03-10 10:00:00'),
-(3, 1, '2026-03-12 14:30:00'),
-(4, 11, '2026-03-15 09:00:00'),
-(5, 23, '2026-03-18 11:00:00'),
-(6, 15, '2026-03-20 15:00:00'),
-(7, 21, '2026-03-22 10:30:00'),
-(8, 32, '2026-04-01 08:00:00');
-
--- =====================================================
--- Seed: Reward Points
--- =====================================================
-INSERT INTO reward_points (user_id, points, points_type, balance_after, description, order_id, created_at) VALUES
-(2, 550, 'earn', 1500, 'Tích điểm từ đơn hàng #ORD001', 1, '2026-02-15 14:30:00'),
-(2, -100, 'redeem', 1400, 'Đổi điểm giảm giá', NULL, '2026-03-01 10:00:00'),
-(3, 890, 'earn', 2800, 'Tích điểm từ đơn hàng #ORD002', 2, '2026-02-20 16:45:00'),
-(4, 180, 'earn', 500, 'Tích điểm từ đơn hàng #ORD003', 3, '2026-03-05 11:20:00'),
-(5, 420, 'earn', 1200, 'Tích điểm từ đơn hàng #ORD004', 4, '2026-03-10 09:30:00'),
-(6, 320, 'earn', 800, 'Tích điểm từ đơn hàng #ORD005', 5, '2026-03-15 15:00:00'),
-(7, 750, 'earn', 2200, 'Tích điểm từ đơn hàng #ORD006', 6, '2026-03-20 13:45:00'),
-(8, 210, 'earn', 600, 'Tích điểm từ đơn hàng #ORD007', 7, '2026-03-25 10:15:00');
-
--- =====================================================
--- Seed: Stock Movements
--- =====================================================
-INSERT INTO stock_movements (product_id, variant_id, warehouse_id, movement_type, quantity, quantity_before, quantity_after, unit_cost, reference_type, supplier_id, employee_id, reason, note, created_at, created_by) VALUES
--- Nhập hàng ban đầu
-(1, NULL, 1, 'import', 200, 0, 200, 150000, 'initial_stock', 1, 3, 'Nhập hàng ban đầu', 'Nhập kho lần đầu', '2026-01-15 09:00:00', 1),
-(7, NULL, 1, 'import', 100, 0, 100, 350000, 'initial_stock', 2, 3, 'Nhập hàng ban đầu', 'Nhập kho lần đầu', '2026-01-20 10:00:00', 1),
-(18, NULL, 1, 'import', 50, 0, 50, 350000, 'initial_stock', 2, 3, 'Nhập hàng ban đầu', 'Nhập kho lần đầu', '2026-01-25 11:00:00', 1),
--- Bán hàng (xuất kho)
-(1, NULL, 1, 'export', -2, 200, 198, 150000, 'order', NULL, NULL, 'Bán hàng online', 'Đơn hàng ORD-20260301-001', '2026-03-01 10:35:00', 1),
-(7, NULL, 1, 'export', -1, 100, 99, 350000, 'order', NULL, NULL, 'Bán hàng online', 'Đơn hàng ORD-20260305-002', '2026-03-05 14:25:00', 1),
--- Điều chỉnh tồn kho
-(1, NULL, 1, 'adjustment', -5, 200, 195, 150000, NULL, NULL, 3, 'Kiểm kê phát hiện thiếu', 'Thiếu 5 cái khi kiểm kê', '2026-02-28 16:00:00', 1),
--- Khách trả hàng
-(15, NULL, 1, 'return_in', 1, 0, 1, 95000, 'return_request', NULL, NULL, 'Khách đổi size', 'Đổi size M sang L', '2026-03-10 15:00:00', 1);
-
--- =====================================================
--- Seed: Supplier Orders (Đơn nhập hàng)
--- =====================================================
-INSERT INTO supplier_orders (order_code, supplier_id, warehouse_id, employee_id, status, order_date, expected_date, subtotal, discount_amount, total_amount, paid_amount, payment_status, note, created_at) VALUES
-('PO-2026-001', 1, 1, 3, 'received', '2026-01-10', '2026-01-20', 15000000, 500000, 14500000, 14500000, 'paid', 'Nhập hàng tháng 1/2026', '2026-01-10 09:00:00'),
-('PO-2026-002', 2, 1, 3, 'received', '2026-02-05', '2026-02-15', 25000000, 1000000, 24000000, 24000000, 'paid', 'Nhập hàng tháng 2/2026', '2026-02-05 10:00:00'),
-('PO-2026-003', 3, 1, 3, 'partial_received', '2026-03-01', '2026-03-10', 30000000, 1500000, 28500000, 15000000, 'partial', 'Nhập hàng tháng 3/2026', '2026-03-01 08:00:00'),
-('PO-2026-004', 1, 1, 3, 'pending', '2026-03-20', '2026-03-30', 18000000, 0, 18000000, 0, 'unpaid', 'Nhập hàng bổ sung', '2026-03-20 14:00:00');
-
--- =====================================================
--- Seed: Supplier Order Items
--- =====================================================
-INSERT INTO supplier_order_items (supplier_order_id, product_id, variant_id, size_id, color_id, product_name, product_sku, quantity_ordered, quantity_received, quantity_remaining, unit_cost, total_cost) VALUES
--- PO-001
-(1, 1, NULL, NULL, NULL, 'Áo Thun Nam Basic Cotton 100%', 'ATN-BASIC-001', 200, 200, 0, 150000, 30000000),
-(1, 13, NULL, NULL, NULL, 'Áo Thun Nữ Basic Trơn', 'ATN-BASIC-002', 300, 300, 0, 100000, 30000000),
--- PO-002
-(2, 7, NULL, NULL, NULL, 'Quần Jeans Nam Slim Fit Wash Nhẹ', 'QJN-SLIM-001', 100, 100, 0, 350000, 35000000),
-(2, 18, NULL, NULL, NULL, 'Đầm Midi Ôm Body Sexy', 'DMN-BODY-001', 80, 80, 0, 350000, 28000000),
--- PO-003
-(3, 23, NULL, NULL, NULL, 'Áo Khoác Gió Nam Nữ Unisex', 'AKG-GIO-001', 120, 100, 20, 350000, 42000000),
-(3, 24, NULL, NULL, NULL, 'Áo Blazer Nam Slim Fit', 'ABL-SLIM-001', 50, 50, 0, 650000, 32500000);
-
--- =====================================================
--- Seed: Expenses
--- =====================================================
-INSERT INTO expenses (expense_code, category_id, warehouse_id, description, amount, expense_date, payment_method, supplier_id, employee_id, status, note, created_at) VALUES
-('EXP-2026-001', 2, 1, 'Nhập hàng từ Công ty Phương Nam', 14500000, '2026-01-20', 'bank_transfer', 1, 3, 'paid', 'Thanh toán PO-2026-001', '2026-01-20 15:00:00'),
-('EXP-2026-002', 2, 1, 'Nhập hàng từ Công ty Thắng Lợi', 24000000, '2026-02-15', 'bank_transfer', 2, 3, 'paid', 'Thanh toán PO-2026-002', '2026-02-15 16:00:00'),
-('EXP-2026-003', 11, NULL, 'Tiền điện tháng 1/2026', 3500000, '2026-02-01', 'cash', NULL, 5, 'paid', 'Điện tháng 1', '2026-02-01 10:00:00'),
-('EXP-2026-004', 12, NULL, 'Tiền thuê mặt bằng tháng 1/2026', 25000000, '2026-01-05', 'bank_transfer', NULL, 5, 'paid', 'Tiền thuê tháng 1', '2026-01-05 09:00:00'),
-('EXP-2026-005', 8, NULL, 'Lương nhân viên tháng 1/2026', 45000000, '2026-02-05', 'bank_transfer', NULL, 5, 'paid', 'Lương 5 nhân viên', '2026-02-05 12:00:00'),
-('EXP-2026-006', 14, NULL, 'Quảng cáo Facebook Ads', 5000000, '2026-03-01', 'bank_transfer', NULL, 4, 'paid', 'Chiến dịch tháng 3', '2026-03-01 11:00:00');
-
--- =====================================================
--- Seed: News
--- =====================================================
-INSERT INTO news (title, slug, summary, content, thumbnail, author_name, category, tags, is_featured, is_published, published_at) VALUES
-('Xu hướng thời trang 2026: Những gì đang lên ngôi', 'xu-huong-thoi-trang-2026',
-'Khám phá những xu hướng thời trang nổi bật nhất năm 2026 từ runway đến street style.',
-'<p>Năm 2026 hứa hẹn mang đến nhiều bất ngờ thú vị trong làng thời trang. Dưới đây là những xu hướng đáng chú ý:</p><h3>1. Y2K Revival</h3><p>Phong cách Y2K từ đầu những năm 2000 đang quay trở lại mạnh mẽ.</p><h3>2. Quiet Luxury</h3><p>Luxury tối giản - phong cách "nghèo sang" đang được giới trẻ yêu thích.</p><h3>3. Sustainable Fashion</h3><p>Thời trang bền vững ngày càng được quan tâm.</p>',
-'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop',
-'Fashion Team', 'Xu hướng', '["2026","xu hướng","thời trang"]', 1, 1, '2026-01-01 10:00:00'),
-
-('Hướng dẫn phối đồ cho nàng công sở', 'huong-dan-phoi-do-cho-nang-cong-so',
-'Trở thành cô gái công sở thời trang với những tips phối đồ đơn giản.',
-'<p>Đi làm không có nghĩa là phải nhàm chán. Dưới đây là những gợi ý phối đồ giúp nàng công sở trở nên chuyên nghiệp mà vẫn thời trang.</p><h3>1. Basic Items là Chìa Khóa</h3><p>Đầu tiên, hãy đầu tư vào những basic items chất lượng.</p>',
-'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&h=600&fit=crop',
-'Style Advisor', 'Phong cách', '["công sở","phối đồ","office style"]', 1, 1, '2026-01-15 10:00:00'),
-
-('Cách bảo quản quần áo bền đẹp như mới', 'cach-bao-quan-quan-ao-ben-dep-nhu-moi',
-'Những mẹo đơn giản giúp quần áo của bạn luôn bền đẹp.',
-'<p>Quần áo đắt tiền cần được bảo quản đúng cách để luôn đẹp như mới.</p><h3>1. Đọc Nhãn Giặt</h3><p>Luôn đọc nhãn hướng dẫn giặt trước khi thực hiện.</p>',
-'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=600&fit=crop',
-'Care Guide', 'Hướng dẫn', '["bảo quản","giặt ủi","care tips"]', 0, 1, '2026-02-01 10:00:00'),
-
-('Top 5 item không thể thiếu trong tủ đồ nam giới', 'top-5-item-khong-the-thieu-trong-tu-do-nam-gioi',
-'Khám phá 5 món đồ cơ bản mà mọi chàng trai đều cần có.',
-'<p>Một tủ đồ nam giới hoàn chỉnh không cần quá nhiều, chỉ cần đủ những item thiết yếu và chất lượng.</p><h3>1. Áo Thun Basic</h3><p>Áo thun cotton trắng, đen là nền tảng của mọi outfit.</p>',
-'https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=800&h=600&fit=crop',
-'Gentleman Guide', 'Nam giới', '["men fashion","basic items"]', 1, 1, '2026-02-15 10:00:00');
-
--- =====================================================
--- Seed: Contacts
--- =====================================================
-INSERT INTO contacts (name, email, phone, subject, message, contact_type, priority, status, is_replied, source, created_at) VALUES
-('Hoàng Văn Tuấn', 'tuan.hoang@email.com', '0909876543', 'Hỏi về sản phẩm', 'Tôi muốn hỏi về áo blazer nam size L có còn hàng không?', 'general', 'medium', 'new', 0, 'website', '2026-03-01 10:00:00'),
-('Trần Thị Hương', 'huong.tran@email.com', '0912345679', 'Chính sách đổi trả', 'Tôi muốn đổi size áo croptop đã mua online. Sản phẩm còn nguyên tag.', 'general', 'high', 'in_progress', 0, 'website', '2026-03-05 14:00:00'),
-('Lê Đức Minh', 'minh.le@email.com', '0987654321', 'Hợp tác kinh doanh', 'Tôi muốn hỏi về chương trình dropship của cửa hàng.', 'partnership', 'high', 'replied', 1, 'email', '2026-03-10 09:00:00'),
-('Nguyễn Thu Hà', 'ha.nguyen@email.com', '0932198765', 'Kiểm tra đơn hàng', 'Tôi đã đặt đơn hàng ORD-20260301-001 cách đây 3 ngày.', 'general', 'low', 'resolved', 1, 'website', '2026-03-15 16:00:00'),
-('Đặng Minh Châu', 'chau.dang@email.com', '0941234567', 'Tư vấn mua hàng', 'Tôi cần mua một bộ đồ đi tiệc cho mẹ, ngân sách khoảng 2 triệu.', 'general', 'medium', 'new', 0, 'website', '2026-03-20 11:00:00'),
-('Công ty ABC', 'contact@abc.com', '02812345678', 'Bảo hành sản phẩm', 'Sản phẩm áo khoác bị hỏng zipper sau 1 tuần sử dụng.', 'warranty', 'urgent', 'assigned', 0, 'email', '2026-03-25 15:00:00');
-
--- =====================================================
--- Seed: Settings
--- =====================================================
-INSERT INTO settings (setting_key, setting_value, setting_type, group_name, description) VALUES
--- General
-('site_name', 'Clothing Store', 'string', 'general', 'Tên cửa hàng'),
-('site_description', 'Cửa hàng quần áo thời trang - Phong cách riêng của bạn', 'string', 'general', 'Mô tả cửa hàng'),
-('site_logo', '/logo.svg', 'string', 'general', 'Logo cửa hàng'),
-('site_favicon', '/favicon.ico', 'string', 'general', 'Favicon'),
-('site_email', 'contact@clothing-store.vn', 'string', 'general', 'Email cửa hàng'),
--- Contact
-('contact_phone', '0909 123 456', 'string', 'contact', 'Số điện thoại liên hệ'),
-('contact_hotline', '1900 1234', 'string', 'contact', 'Hotline'),
-('contact_address', '456 Nguyễn Trãi, Quận 5, TP.HCM', 'string', 'contact', 'Địa chỉ cửa hàng'),
-('contact_email', 'contact@clothing-store.vn', 'string', 'contact', 'Email liên hệ'),
-('contact_zalo', '0909123456', 'string', 'contact', 'Zalo'),
-('contact_facebook', 'https://facebook.com/clothingstore', 'string', 'contact', 'Facebook'),
--- Working Hours
-('working_hours', '{"monday": "8:00 - 21:00", "tuesday": "8:00 - 21:00", "wednesday": "8:00 - 21:00", "thursday": "8:00 - 21:00", "friday": "8:00 - 21:00", "saturday": "9:00 - 22:00", "sunday": "9:00 - 22:00"}', 'json', 'contact', 'Giờ làm việc'),
--- Shipping
-('free_shipping_threshold', '500000', 'number', 'shipping', 'Ngưỡng miễn phí vận chuyển (VNĐ)'),
-('default_shipping_fee', '30000', 'number', 'shipping', 'Phí vận chuyển mặc định (VNĐ)'),
-('default_shipping_provider', 'GHN', 'string', 'shipping', 'Đơn vị vận chuyển mặc định'),
--- Payment
-('cod_fee', '0', 'number', 'payment', 'Phí COD (%)'),
-('tax_rate', '10', 'number', 'payment', 'Thuế VAT (%)'),
-('min_order_amount', '100000', 'number', 'payment', 'Giá trị đơn hàng tối thiểu'),
--- Display
-('pagination_limit', '12', 'number', 'display', 'Số sản phẩm mỗi trang'),
-('pagination_news_limit', '6', 'number', 'display', 'Số tin tức mỗi trang'),
-('related_products_limit', '4', 'number', 'display', 'Số sản phẩm liên quan'),
--- Reward Points
-('points_per_1000', '10', 'number', 'reward', 'Điểm tích lũy cho mỗi 1000đ'),
-('points_redemption_rate', '100', 'number', 'reward', 'Tỷ lệ đổi điểm (1 điểm = X VNĐ)'),
--- Business Info
-('tax_code', '0301234567', 'string', 'business', 'Mã số thuế'),
-('business_license', '0101234567', 'string', 'business', 'Giấy phép kinh doanh'),
--- Inventory
-('low_stock_threshold', '10', 'number', 'inventory', 'Ngưỡng cảnh báo tồn kho thấp');
+
+-- =====================================================
+-- SIZES
+-- =====================================================
+INSERT IGNORE INTO sizes (name, code, sort_order, is_active) VALUES
+('S', 'S', 1, TRUE),
+('M', 'M', 2, TRUE),
+('L', 'L', 3, TRUE),
+('XL', 'XL', 4, TRUE),
+('XXL', 'XXL', 5, TRUE),
+('3XL', '3XL', 6, TRUE),
+('4XL', '4XL', 7, TRUE),
+('5XL', '5XL', 8, TRUE);
+
+-- =====================================================
+-- COLORS
+-- =====================================================
+INSERT IGNORE INTO colors (name, code, hex_code, sort_order, is_active) VALUES
+('Đen', 'BLACK', '#000000', 1, TRUE),
+('Trắng', 'WHITE', '#FFFFFF', 2, TRUE),
+('Xám', 'GRAY', '#808080', 3, TRUE),
+('Xanh Navy', 'NAVY', '#000080', 4, TRUE),
+('Đỏ', 'RED', '#FF0000', 5, TRUE),
+('Hồng', 'PINK', '#FFC0CB', 6, TRUE),
+('Be', 'BE', '#F5F5DC', 7, TRUE),
+('Nâu', 'BROWN', '#A52A2A', 8, TRUE),
+('Xanh lá', 'GREEN', '#008000', 9, TRUE),
+('Cam', 'ORANGE', '#FFA500', 10, TRUE),
+('Tím', 'PURPLE', '#800080', 11, TRUE),
+('Xanh Ngọc', 'TEAL', '#008080', 12, TRUE),
+('Xanh Baby', 'BABY_BLUE', '#89CFF0', 13, TRUE),
+('Vàng', 'YELLOW', '#FFFF00', 14, TRUE);
+
+-- =====================================================
+-- CATEGORIES
+-- =====================================================
+INSERT IGNORE INTO categories (name, slug, description, image, icon, sort_order, is_featured, is_active) VALUES
+('Áo Thun', 'ao-thun', 'Áo thun các loại', 'https://2885371169.e.cdneverest.net//catalog/category/men-4_3_Ao-phong_Ao-phong-basic.webp', NULL, 1, TRUE, TRUE),
+('Áo Sơ Mi', 'ao-so-mi', 'Áo sơ mi nam nữ', 'https://2885371169.e.cdneverest.net//catalog/category/men-6_1_Ao-so-mi_Tat-ca.webp', NULL, 2, TRUE, TRUE),
+('Quần Jeans', 'quan-jeans', 'Quần jeans nam nữ', 'https://2885371169.e.cdneverest.net//catalog/category/men-7_2_Quan_Quan-jeans.webp', NULL, 3, TRUE, TRUE),
+('Áo Blouse', 'ao-blouse', 'Áo blouse nữ', 'https://cdn.hstatic.net/products/1000402464/fwbl25fh07c__2__9894f50b0d6f419d849330beb60c5fe6_master.jpg', NULL, 4, TRUE, TRUE),
+('Homewear', 'homewear', 'Đồ mặc nhà', NULL, NULL, 5, FALSE, TRUE),
+('T-Shirt', 'tshirt', 'Áo T-Shirt', NULL, NULL, 6, FALSE, TRUE),
+('Váy', 'vay', 'Váy nữ', NULL, NULL, 7, FALSE, TRUE),
+('Áo Polo', 'ao-polo', 'Áo polo', NULL, NULL, 8, FALSE, TRUE),
+('Quần Short', 'quan-short', 'Quần short', NULL, NULL, 9, FALSE, TRUE),
+('Đồ lót', 'do-lot', 'Đồ lót', NULL, NULL, 10, FALSE, TRUE),
+('Bé Gái', 'be-gai', 'Thời trang bé gái', NULL, NULL, 11, FALSE, TRUE),
+('Bé Trai', 'be-trai', 'Thời trang bé trai', NULL, NULL, 12, FALSE, TRUE),
+('Phụ Kiện', 'phu-kien', 'Phụ kiện thời trang', NULL, NULL, 13, FALSE, TRUE);
+
+-- =====================================================
+-- BRANDS
+-- =====================================================
+INSERT IGNORE INTO brands (name, slug, logo, description, is_featured, is_active) VALUES
+('CANIFA', 'canifa', NULL, 'Thương hiệu thời trang Việt Nam', TRUE, TRUE),
+('CANIFA S', 'canifa-s', NULL, 'Thương hiệu cao cấp', TRUE, TRUE),
+('Kids', 'kids', NULL, 'Thời trang trẻ em', TRUE, TRUE),
+('CANIFA Move', 'canifa-move', NULL, 'Thời trang thể thao', FALSE, TRUE);
+
+-- =====================================================
+-- SUPPLIERS & WAREHOUSES
+-- =====================================================
+INSERT IGNORE INTO suppliers (code, name, phone, email, address, contact_person, is_active) VALUES
+('SUP-DEFAULT', 'Nhà cung cấp mặc định', '0900000000', 'supplier@example.com', 'Hà Nội', 'Bộ phận cung ứng', TRUE),
+('SUP-CANIFA', 'Xưởng may CANIFA', '0912345678', 'sourcing@canifa.test', 'Khu công nghiệp dệt may', 'Phòng cung ứng', TRUE);
+
+INSERT IGNORE INTO warehouses (code, name, address, is_main, is_active) VALUES
+('WH-MAIN', 'Kho chính', 'Kho trung tâm', TRUE, TRUE),
+('WH-ONLINE', 'Kho online', 'Kho xử lý đơn online', FALSE, TRUE);
+
+-- =====================================================
+-- BANNERS
+-- =====================================================
+INSERT IGNORE INTO banners (title, slug, image, link_url, description, sort_order, is_active, valid_from, valid_until) VALUES
+('Banner chính 1', 'banner-1', 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/2/8/2880x960007052026.webp', NULL, NULL, 1, TRUE, NOW(), NULL),
+('Banner T-Shirt', 'banner-tshirt', 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/a/o/aophong-desk-210326.webp', '/tshirt', NULL, 2, TRUE, NOW(), NULL),
+('Banner SS', 'banner-ss', 'http://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/s/s/ssnd_topbanner_desktop-020526.webp', NULL, NULL, 3, TRUE, NOW(), NULL);
+
+-- =====================================================
+-- PROMOTIONS
+-- =====================================================
+INSERT IGNORE INTO promotions (title, slug, description, image_url, discount_type, discount_value, start_date, end_date, is_active, is_featured) VALUES
+('Flash Sale mùa hè', 'flash-sale-mua-he', 'Giảm giá nhanh cho các sản phẩm thời trang hè.', 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/a/o/aophong-desk-210326.webp', 'percentage', 20, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 7 DAY), TRUE, TRUE),
+('Ưu đãi cuối tuần', 'uu-dai-cuoi-tuan', 'Giảm trực tiếp cho đơn hàng trong dịp cuối tuần.', NULL, 'fixed_amount', 100000, NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), TRUE, FALSE);
+
+-- =====================================================
+-- VOUCHERS
+-- =====================================================
+INSERT IGNORE INTO vouchers (code, title, description, discount_type, discount_value, min_order_amount, max_usage_total, max_usage_per_user, valid_from, valid_until, is_active, is_public) VALUES
+('HETHAN1', 'Flash Sale 15%', 'Giảm 15% cho đơn từ 499k - Hết hạn trong 1 ngày!', 'percentage', 15, 499000, 300, 1, DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL 1 DAY), TRUE, TRUE),
+('HETHAN2', 'Freeship 30K', 'Miễn phí vận chuyển - Hết hạn trong 2 ngày!', 'fixed_amount', 30000, 0, 500, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 2 DAY), TRUE, TRUE),
+('VOUCHER100K', 'Voucher 100K', 'Giảm 100k cho đơn từ 799k', 'fixed_amount', 100000, 799000, 1000, 1, NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY), TRUE, TRUE),
+('VOUCHER200K', 'Voucher 200K', 'Giảm 200k cho đơn từ 1.099k', 'fixed_amount', 200000, 1099000, 500, 1, NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY), TRUE, TRUE),
+('VOUCHER50K', 'Voucher 50K', 'Giảm 50k cho đơn từ 399k', 'fixed_amount', 50000, 399000, 2000, 1, NOW(), DATE_ADD(NOW(), INTERVAL 2 MONTH), TRUE, TRUE),
+('NEWUSER80K', 'Voucher 80K', 'Giảm 80k cho đơn Online đầu tiên', 'fixed_amount', 80000, 0, 5000, 1, NOW(), DATE_ADD(NOW(), INTERVAL 2 MONTH), TRUE, TRUE);
+
+-- =====================================================
+-- COLLECTIONS
+-- =====================================================
+INSERT IGNORE INTO collections (title, slug, description, image, cta, cta_text, sort_order, is_featured, is_active) VALUES
+('DORAEMON', 'doraemon', 'Bộ sưu tập DORAEMON', 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/d/o/doraemon_bst_homepage-140426.webp', '/collections/doraemon', 'Khám phá', 1, TRUE, TRUE),
+('TỰ HÀO VIỆT NAM', 'tu-hao-viet-nam', 'Bộ sưu tập CANIFA S', 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/c/a/canifas_bst_homepage-140426.webp', '/collections/canifa-s', 'Khám phá', 2, TRUE, TRUE),
+('DISNEY', 'disney', 'Bộ sưu tập DISNEY', 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/d/i/disney_bst_homepage-140426.webp', '/collections/disney', 'Khám phá', 3, TRUE, TRUE);
+
+-- =====================================================
+-- PRODUCTS (30 products total)
+-- id 1-6:  Homewear
+-- id 7-11: T-Shirt
+-- id 12-16: Váy
+-- id 17-24: Featured
+-- id 25-30: Best Sellers
+-- =====================================================
+
+INSERT IGNORE INTO products (name, slug, short_description, description, price, compare_price, sku, stock, category_id, brand_id, gender, material, is_online_exclusive, is_featured, is_best_seller, is_active, total_sold) VALUES
+-- HOMEWEAR (id 1-6)
+('Bộ mặc nhà nữ', 'bo-mac-nha-nu', 'Bộ mặc nhà nữ cotton mềm mại, thoáng mát cả ngày', 'Bộ mặc nhà nữ, chất liệu cotton 100%, thoáng mát, thoải mái khi mặc ở nhà. Thiết kế đơn giản, dễ phối.', 399000, NULL, 'HW001', 0, 5, 1, 'female', 'Cotton 100%', FALSE, FALSE, FALSE, TRUE, 120),
+('Bộ mặc nhà nam', 'bo-mac-nha-nam', 'Bộ mặc nhà nam basic, thoáng khí', 'Bộ mặc nhà nam, chất liệu cotton blend, thoáng khí, thoải mái.', 499000, NULL, 'HW002', 0, 5, 1, 'male', 'Cotton 65%/Polyester 35%', FALSE, FALSE, FALSE, TRUE, 98),
+('Áo ngủ nữ cotton', 'ao-ngu-nu', 'Áo ngủ nữ cotton mát, thoải mái khi ngủ', 'Áo ngủ nữ, chất liệu cotton tự nhiên, thoáng mát khi ngủ. Phong cách nhẹ nhàng.', 299000, NULL, 'HW003', 0, 5, 1, 'female', 'Cotton 100%', TRUE, FALSE, FALSE, TRUE, 75),
+('Quần soóc mặc nhà', 'quan-sooc-mac-nha', 'Quần soóc mặc nhà nam, phong cách basic', 'Quần soóc mặc nhà, chất liệu thoáng mát, phong cách. Co giãn tốt.', 199000, 299000, 'HW004', 0, 5, 1, 'male', 'Cotton 100%', FALSE, FALSE, FALSE, TRUE, 156),
+('Bộ nỉ mặc nhà', 'bo-ni-mac-nha', 'Bộ nỉ mặc nhà ấm áp cho mùa đông', 'Bộ nỉ mặc nhà, vải nỉ cao cấp, giữ ấm tốt. Phù hợp mùa đông.', 599000, NULL, 'HW005', 0, 5, 1, 'male', 'Nỉ Cotton', FALSE, FALSE, FALSE, TRUE, 45),
+('Đầm ngủ nữ', 'dam-ngu-nu', 'Đầm ngủ nữ cotton, phong cách nữ tính', 'Đầm ngủ nữ, chất liệu cotton mềm mại, phong cách nữ tính.', 449000, NULL, 'HW006', 0, 5, 1, 'female', 'Cotton 100%', TRUE, FALSE, FALSE, TRUE, 88),
+
+-- T-SHIRT (id 7-11)
+('Áo phông nữ cotton basic dáng suông', 'ao-phong-nu-cotton-basic', 'Áo phông nữ cotton basic dáng suông, phong cách basic', 'Áo phông nữ cotton basic dáng suông, phong cách basic, dễ mặc, dễ phối đồ. Chất cotton 100% mềm mại.', 209300, 299000, 'TS001', 0, 6, 1, 'female', 'Cotton 100%', FALSE, TRUE, TRUE, TRUE, 245),
+('Áo phông nam cổ tròn', 'ao-phong-nam-co-tron', 'Áo phông nam cổ tròn basic, chất cotton mềm mại', 'Áo phông nam cổ tròn, chất cotton mềm mại, thoáng khí. Basic nhưng không kém phần thời trang.', 299000, NULL, 'TS002', 0, 6, 1, 'male', 'Cotton 100%', FALSE, TRUE, TRUE, TRUE, 189),
+('Áo phông unisex form rộng', 'ao-phong-unisex-form-rong', 'Áo phông unisex form rộng, thoải mái, dễ phối', 'Áo phông unisex form rộng, thoải mái, dễ phối. Chất cotton co giãn nhẹ.', 349000, 449000, 'TS003', 0, 6, 1, 'unisex', 'Cotton 95%/Spandex 5%', FALSE, TRUE, FALSE, TRUE, 134),
+('Áo phông nữ cổ V', 'ao-phong-nu-co-v', 'Áo phông nữ cổ V, dáng ôm nhẹ, tôn dáng', 'Áo phông nữ cổ V, dáng ôm nhẹ, tôn dáng. Thiết kế tinh tế cho các cô gái.', 259000, NULL, 'TS004', 0, 6, 1, 'female', 'Cotton 100%', FALSE, TRUE, FALSE, TRUE, 98),
+('Áo phông nữ dài tay', 'ao-phong-nu-dai-tay', 'Áo phông nữ dài tay, ấm áp cho mùa đông', 'Áo phông nữ dài tay, chất cotton mềm, ấm áp. Phù hợp mùa đông hoặc đi làm.', 359000, NULL, 'TS005', 0, 6, 1, 'female', 'Cotton 100%', TRUE, FALSE, FALSE, TRUE, 67),
+
+-- VÁY (id 12-16)
+('Váy nữ maxi cotton', 'vay-nu-maxi', 'Váy nữ maxi cotton, dáng dài thoải mái', 'Váy nữ maxi cotton, dáng dài thoải mái, phong cách. Chất cotton nhẹ mát.', 699000, 899000, 'VY001', 0, 7, 1, 'female', 'Cotton 100%', FALSE, TRUE, TRUE, TRUE, 67),
+('Chân váy mini', 'chan-vay-mini', 'Chân váy mini nữ, dáng trẻ trung', 'Chân váy mini, dáng trẻ trung, dễ phối đồ. Phù hợp nhiều dáng người.', 349000, NULL, 'VY002', 0, 7, 1, 'female', 'Cotton blend', FALSE, TRUE, FALSE, TRUE, 112),
+('Váy đầm suông', 'vay-dam-suong', 'Váy đầm suông nữ, thoải mái', 'Váy đầm suông, thoải mái, phù hợp nhiều dáng người. Thiết kế tối giản.', 499000, 599000, 'VY003', 0, 7, 1, 'female', 'Rayon', FALSE, TRUE, FALSE, TRUE, 89),
+('Váy chữ A', 'vay-chu-a', 'Váy chữ A nữ, dáng xòe nhẹ tôn dáng', 'Váy chữ A, dáng xòe nhẹ, tôn dáng. Cổ điển và nữ tính.', 449000, NULL, 'VY004', 0, 7, 1, 'female', 'Cotton 100%', FALSE, TRUE, TRUE, TRUE, 145),
+('Váy đầm maxi', 'vay-dam-maxi', 'Váy đầm maxi nữ, phong cách bohemian', 'Váy đầm maxi, phong cách bohemian, lớp vải nhẹ bay. Mùa hè hoàn hảo.', 799000, 999000, 'VY005', 0, 7, 1, 'female', 'Voan', FALSE, FALSE, FALSE, TRUE, 55),
+
+-- FEATURED PRODUCTS (id 17-24)
+('Quần soóc bé trai', 'quan-sooc-be-trai', 'Quần soóc bé trai, chất liệu thoáng mát', 'Quần soóc bé trai, chất liệu thoáng mát, trẻ trung. Co giãn tốt cho bé vui chơi.', 499000, NULL, 'FE001', 0, 12, 3, 'kids_boy', 'Cotton 100%', FALSE, TRUE, FALSE, TRUE, 78),
+('Quần soóc active nam', 'quan-sooc-active-nam', 'Quần soóc active nam, co giãn thoáng khí', 'Quần soóc active nam, co giãn, thoáng khí. Thể thao và năng động.', 599000, NULL, 'FE002', 0, 9, 1, 'male', 'Polyester/Elastane', FALSE, TRUE, FALSE, TRUE, 65),
+('Quần soóc nam', 'quan-sooc-nam', 'Quần soóc nam basic, thoải mái cả ngày', 'Quần soóc nam basic, thoải mái cả ngày. Phong cách nam tính.', 599000, NULL, 'FE003', 0, 9, 1, 'male', 'Cotton 100%', FALSE, TRUE, TRUE, TRUE, 189),
+('Áo polo nam dáng regular', 'ao-polo-nam', 'Áo polo nam dáng regular, lịch sự và thoải mái', 'Áo polo nam dáng regular, lịch sự và thoải mái. Cổ điển nam tính.', 399000, NULL, 'FE004', 0, 8, 1, 'male', 'Cotton/Polyester', FALSE, TRUE, FALSE, TRUE, 112),
+('Áo sơ mi nam dài tay', 'ao-so-mi-nam-dai-tay', 'Áo sơ mi nam dài tay, phong cách công sở', 'Áo sơ mi nam dài tay, phong cách công sở. Lịch sự, chuyên nghiệp.', 599000, 699000, 'FE005', 0, 2, 1, 'male', 'Cotton 100%', FALSE, TRUE, FALSE, TRUE, 45),
+('Áo blouse nữ', 'ao-blouse-nu', 'Áo blouse nữ, dáng thanh lịch', 'Áo blouse nữ, dáng thanh lịch, dễ phối. Văn phòng và dạo phố.', 349000, NULL, 'FE006', 0, 4, 1, 'female', 'Rayon', FALSE, TRUE, FALSE, TRUE, 134),
+('Quần jeans nam straight', 'quan-jeans-nam-straight', 'Quần jeans nam straight, form classic', 'Quần jeans nam straight, form classic, bền đẹp theo thời gian.', 799000, 999000, 'FE007', 0, 3, 1, 'male', 'Denim', FALSE, TRUE, FALSE, TRUE, 89),
+('Áo Thun bé gái', 'ao-thun-be-gai', 'Áo Thun bé gái, họa tiết dễ thương', 'Áo Thun bé gái, họa tiết dễ thương. Chất cotton mềm cho bé.', 199000, NULL, 'FE008', 0, 11, 3, 'kids_girl', 'Cotton 100%', FALSE, TRUE, FALSE, TRUE, 203),
+
+-- BEST SELLERS (id 25-30)
+('Áo phông nam dài tay', 'ao-phong-nam-dai-tay', 'Áo phông nam dài tay, basic', 'Áo phông nam dài tay, chất cotton thoáng mát. Phong cách basic.', 349000, NULL, 'BS001', 0, 6, 1, 'male', 'Cotton 100%', FALSE, FALSE, TRUE, TRUE, 312),
+('Quần jeans nữ slim fit', 'quan-jeans-nu-slim-fit', 'Quần jeans nữ slim fit, ôm gọn', 'Quần jeans nữ slim fit, ôm gọn, tôn dáng. Co giãn nhẹ.', 599000, NULL, 'BS002', 0, 3, 1, 'female', 'Denim/Elastane', TRUE, FALSE, TRUE, TRUE, 278),
+('Áo sơ mi nữ ngắn tay', 'ao-so-mi-nu-ngan-tay', 'Áo sơ mi nữ ngắn tay, thanh lịch', 'Áo sơ mi nữ ngắn tay, thanh lịch. Nữ tính và trẻ trung.', 399000, NULL, 'BS003', 0, 2, 1, 'female', 'Cotton 100%', FALSE, FALSE, TRUE, TRUE, 234),
+('Quần soóc nữ', 'quan-sooc-nu', 'Quần soóc nữ, dáng ngắn năng động', 'Quần soóc nữ, dáng ngắn năng động. Mùa hè thoáng mát.', 349000, NULL, 'BS004', 0, 9, 1, 'female', 'Cotton 100%', FALSE, FALSE, TRUE, TRUE, 198),
+('Áo polo nữ', 'ao-polo-nu', 'Áo polo nữ, phong cách thể thao', 'Áo polo nữ, phong cách thể thao năng động. Co giãn tốt.', 399000, NULL, 'BS005', 0, 8, 1, 'female', 'Cotton/Polyester', FALSE, FALSE, TRUE, TRUE, 176),
+('Quần jeans bé gái', 'quan-jeans-be-gai', 'Quần jeans bé gái, trẻ trung', 'Quần jeans bé gái, trẻ trung và năng động. Chất bền đẹp.', 349000, NULL, 'BS006', 0, 11, 3, 'kids_girl', 'Denim', FALSE, FALSE, TRUE, TRUE, 165);
+
+-- =====================================================
+-- PRODUCT IMAGES
+-- =====================================================
+
+INSERT IGNORE INTO product_images (product_id, url, alt_text, sort_order, is_primary, is_online_exclusive) VALUES
+-- HW001 (1)
+(1, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s009-fe170-m-0-u.webp', 'Bộ mặc nhà nữ - Ảnh 1', 1, TRUE, FALSE),
+(1, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s009-fe170-m-0-u.webp', 'Bộ mặc nhà nữ - Ảnh 2', 2, FALSE, FALSE),
+-- HW002 (2)
+(2, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/l/8ls26s001-sb968-1-thumb.webp', 'Bộ mặc nhà nam - Ảnh 1', 1, TRUE, FALSE),
+(2, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/l/8ls26s002-sn127-2-thumb.webp', 'Bộ mặc nhà nam - Ảnh 2', 2, FALSE, FALSE),
+-- HW003 (3)
+(3, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s010-se249-m-0-u.webp', 'Áo ngủ nữ cotton - Ảnh 1', 1, TRUE, TRUE),
+(3, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s001-fe173-m-0-u.webp', 'Áo ngủ nữ cotton - Ảnh 2', 2, FALSE, FALSE),
+-- HW004 (4)
+(4, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/l/8lb26a001-fb618-xl-1-u.webp', 'Quần soóc mặc nhà - Ảnh 1', 1, TRUE, FALSE),
+(4, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/l/8lb26a002-sb968-xl-1-u.webp', 'Quần soóc mặc nhà - Ảnh 2', 2, FALSE, FALSE),
+-- HW005 (5)
+(5, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/s/8st25s001-sa142-1-thumb.webp', 'Bộ nỉ mặc nhà - Ảnh 1', 1, TRUE, FALSE),
+(5, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s003-sl348-m-1-u.webp', 'Bộ nỉ mặc nhà - Ảnh 2', 2, FALSE, FALSE),
+-- HW006 (6)
+(6, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s005-dg011-1-thumb.webp', 'Đầm ngủ nữ - Ảnh 1', 1, TRUE, TRUE),
+(6, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s005-dm033-1-thumb.webp', 'Đầm ngủ nữ - Ảnh 2', 2, FALSE, FALSE),
+-- TS001 (7)
+(7, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/t/6ta26s001-sy306-m-1-u.webp', 'Áo phông nữ cotton basic - Ảnh 1', 1, TRUE, FALSE),
+(7, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/t/6ts26s030-sr031-1-thumb.webp', 'Áo phông nữ cotton basic - Ảnh 2', 2, FALSE, FALSE),
+-- TS002 (8)
+(8, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/5/t/5ts26s021-sw001-1-thumbab.webp', 'Áo phông nam cổ tròn - Ảnh 1', 1, TRUE, FALSE),
+(8, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/t/8ts26s010-sk010-xl-1-u.webp', 'Áo phông nam cổ tròn - Ảnh 2', 2, FALSE, FALSE),
+-- TS003 (9)
+(9, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/5/t/5ts25s050-sk389-1-thumbb.webp', 'Áo phông unisex form rộng - Ảnh 1', 1, TRUE, FALSE),
+(9, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/5/t/5ts25s044-sw001-1-thumb.webp', 'Áo phông unisex form rộng - Ảnh 2', 2, FALSE, FALSE),
+-- TS004 (10)
+(10, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s002-sm610-m-0-u.webp', 'Áo phông nữ cổ V - Ảnh 1', 1, TRUE, FALSE),
+(10, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/l/6ls26s002-sw001-m-0-u.webp', 'Áo phông nữ cổ V - Ảnh 2', 2, FALSE, FALSE),
+-- TS005 (11)
+(11, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/t/6to25c001-sn407-5.webp', 'Áo phông nữ dài tay - Ảnh 1', 1, TRUE, TRUE),
+(11, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/t/6tw24w013-sw033-thumb.webp', 'Áo phông nữ dài tay - Ảnh 2', 2, FALSE, FALSE),
+-- VY001 (12)
+(12, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds23w004-sm541-4-thumb.webp', 'Váy nữ maxi cotton - Ảnh 1', 1, TRUE, FALSE),
+(12, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds23w005-sk010-1-thumb-n.webp', 'Váy nữ maxi cotton - Ảnh 2', 2, FALSE, FALSE),
+-- VY002 (13)
+(13, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/k/6ks26s006-sb246-2-thumb.webp', 'Chân váy mini - Ảnh 1', 1, TRUE, FALSE),
+(13, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/k/6ks26s006-sp011-2-thumb.webp', 'Chân váy mini - Ảnh 2', 2, FALSE, FALSE),
+-- VY003 (14)
+(14, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds25s007-sy161-1-thumb.webp', 'Váy đầm suông - Ảnh 1', 1, TRUE, FALSE),
+(14, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds25s012-sw001-thumb.webp', 'Váy đầm suông - Ảnh 2', 2, FALSE, FALSE),
+-- VY004 (15)
+(15, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds25s012-sw001-thumb.webp', 'Váy chữ A - Ảnh 1', 1, TRUE, FALSE),
+(15, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds25s010-sk010-1-thumb.webp', 'Váy chữ A - Ảnh 2', 2, FALSE, FALSE),
+-- VY005 (16)
+(16, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds25s010-sk010-1-thumb.webp', 'Váy đầm maxi - Ảnh 1', 1, TRUE, FALSE),
+(16, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/d/6ds25c002-sa151-1-thumb.webp', 'Váy đầm maxi - Ảnh 2', 2, FALSE, FALSE),
+-- FE001 (17)
+(17, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/2/b/2bs25s002-sa026-1-thumb.webp', 'Quần soóc bé trai - Ảnh 1', 1, TRUE, FALSE),
+(17, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/2/b/2bs25c001-sg153-1-thumb.webp', 'Quần soóc bé trai - Ảnh 2', 2, FALSE, FALSE),
+-- FE002 (18)
+(18, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/b/8bs25s012-se062-1-thumb.webp', 'Quần soóc active nam - Ảnh 1', 1, TRUE, FALSE),
+-- FE003 (19)
+(19, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/b/8bs25s005-sk010-1-thumb.webp', 'Quần soóc nam - Ảnh 1', 1, TRUE, FALSE),
+(19, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/b/8bs25s006-sg322-1-thumb.webp', 'Quần soóc nam - Ảnh 2', 2, FALSE, FALSE),
+-- FE004 (20)
+(20, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/t/8tp26s015-sb001-xl-1-u.webp', 'Áo polo nam - Ảnh 1', 1, TRUE, FALSE),
+-- FE005 (21)
+(21, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/t/8th26s006-sw001-xl-1-u.webp', 'Áo sơ mi nam dài tay - Ảnh 1', 1, TRUE, FALSE),
+(21, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/t/8th25a003-sw001-1-thumb.webp', 'Áo sơ mi nam dài tay - Ảnh 2', 2, FALSE, FALSE),
+-- FE006 (22)
+(22, 'https://cdn.hstatic.net/products/1000402464/fwbl25fh07c__2__9894f50b0d6f419d849330beb60c5fe6_master.jpg', 'Áo blouse nữ - Ảnh 1', 1, TRUE, FALSE),
+-- FE007 (23)
+(23, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/b/8bj25a005-sj885-1-thumb.webp', 'Quần jeans nam - Ảnh 1', 1, TRUE, FALSE),
+(23, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/b/8bj25w002-sj951-1-thumb.webp', 'Quần jeans nam - Ảnh 2', 2, FALSE, FALSE),
+-- FE008 (24)
+(24, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/1/i/1it25w002-sw011-110-1-u.webp', 'Áo Thun bé gái - Ảnh 1', 1, TRUE, FALSE),
+(24, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/1/i/1it25w001-sw011-110-1-u.webp', 'Áo Thun bé gái - Ảnh 2', 2, FALSE, FALSE),
+-- BS001 (25)
+(25, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/8/t/8tl25s001-sk124-thumb.webp', 'Áo phông nam dài tay - Ảnh 1', 1, TRUE, FALSE),
+(25, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/5/t/5tl25w006-sa135-1-thumb.webp', 'Áo phông nam dài tay - Ảnh 2', 2, FALSE, FALSE),
+-- BS002 (26)
+(26, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/b/6bj23s002-sj799-5-a.webp', 'Quần jeans nữ slim fit - Ảnh 1', 1, TRUE, TRUE),
+(26, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/b/6bj25w001-sj961-1-thumb.webp', 'Quần jeans nữ slim fit - Ảnh 2', 2, FALSE, FALSE),
+-- BS003 (27)
+(27, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/5/t/5th26s001-pb551-m-1-u.webp', 'Áo sơ mi nữ ngắn tay - Ảnh 1', 1, TRUE, FALSE),
+-- BS004 (28)
+(28, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/b/6bs26s015-se086-2-thumb.webp', 'Quần soóc nữ - Ảnh 1', 1, TRUE, FALSE),
+(28, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/b/6bs26s015-sk010-2-thumb.webp', 'Quần soóc nữ - Ảnh 2', 2, FALSE, FALSE),
+-- BS005 (29)
+(29, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/t/6tp26s002-pm104-m-1-u.webp', 'Áo polo nữ - Ảnh 1', 1, TRUE, FALSE),
+(29, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/6/t/6tp26s002-pb546-m-1-u.webp', 'Áo polo nữ - Ảnh 2', 2, FALSE, FALSE),
+-- BS006 (30)
+(30, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/1/b/1bk25s001-sb001-1-thumb.webp', 'Quần jeans bé gái - Ảnh 1', 1, TRUE, FALSE),
+(30, 'https://2885371169.e.cdneverest.net/catalog/product/cache/500_750/1/b/1bj25a001-sj911-1-thumb.webp', 'Quần jeans bé gái - Ảnh 2', 2, FALSE, FALSE);
+
+-- =====================================================
+-- PRODUCT VARIANTS (size + color) - ALL 30 PRODUCTS
+-- Sizes: S(1), M(2), L(3), XL(4), XXL(5)
+-- Colors: Đen(1), Trắng(2), Xám(3), Navy(4), Đỏ(5), Hồng(6), Be(7), Xanh Baby(13)
+-- =====================================================
+
+-- HW001 (1): Bộ mặc nhà nữ - Size S,M,L,XL - Màu Hồng(6), Xanh Baby(13), Be(7)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(1, 1, 6, 'HW001-S-HONG', 399000, 12), (1, 2, 6, 'HW001-M-HONG', 399000, 15), (1, 3, 6, 'HW001-L-HONG', 399000, 13), (1, 4, 6, 'HW001-XL-HONG', 399000, 10),
+(1, 1, 13, 'HW001-S-BABY', 399000, 8), (1, 2, 13, 'HW001-M-BABY', 399000, 10), (1, 3, 13, 'HW001-L-BABY', 399000, 8),
+(1, 1, 7, 'HW001-S-BE', 399000, 6), (1, 2, 7, 'HW001-M-BE', 399000, 8), (1, 3, 7, 'HW001-L-BE', 399000, 5);
+
+-- HW002 (2): Bộ mặc nhà nam - Size S,M,L,XL - Màu Xám(3), Navy(4), Be(7)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(2, 1, 3, 'HW002-S-XAM', 499000, 10), (2, 2, 3, 'HW002-M-XAM', 499000, 12), (2, 3, 3, 'HW002-L-XAM', 499000, 10), (2, 4, 3, 'HW002-XL-XAM', 499000, 8),
+(2, 1, 4, 'HW002-S-NAVY', 499000, 8), (2, 2, 4, 'HW002-M-NAVY', 499000, 10), (2, 3, 4, 'HW002-L-NAVY', 499000, 8), (2, 4, 4, 'HW002-XL-NAVY', 499000, 6),
+(2, 1, 7, 'HW002-S-BE', 499000, 5), (2, 2, 7, 'HW002-M-BE', 499000, 7), (2, 3, 7, 'HW002-L-BE', 499000, 5);
+
+-- HW003 (3): Áo ngủ nữ - Size S,M,L - Màu Hồng(6), Be(7)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(3, 1, 6, 'HW003-S-HONG', 299000, 15), (3, 2, 6, 'HW003-M-HONG', 299000, 20), (3, 3, 6, 'HW003-L-HONG', 299000, 15),
+(3, 1, 7, 'HW003-S-BE', 299000, 10), (3, 2, 7, 'HW003-M-BE', 299000, 12), (3, 3, 7, 'HW003-L-BE', 299000, 8);
+
+-- HW004 (4): Quần soóc mặc nhà - Size S,M,L,XL - Màu Xám(3), Navy(4)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(4, 1, 3, 'HW004-S-XAM', 199000, 20), (4, 2, 3, 'HW004-M-XAM', 199000, 25), (4, 3, 3, 'HW004-L-XAM', 199000, 20), (4, 4, 3, 'HW004-XL-XAM', 199000, 15),
+(4, 1, 4, 'HW004-S-NAVY', 199000, 20), (4, 2, 4, 'HW004-M-NAVY', 199000, 25), (4, 3, 4, 'HW004-L-NAVY', 199000, 20), (4, 4, 4, 'HW004-XL-NAVY', 199000, 15);
+
+-- HW005 (5): Bộ nỉ mặc nhà nam - Size M,L,XL,XXL - Màu Xám(3), Navy(4)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(5, 2, 3, 'HW005-M-XAM', 599000, 8), (5, 3, 3, 'HW005-L-XAM', 599000, 10), (5, 4, 3, 'HW005-XL-XAM', 599000, 10), (5, 5, 3, 'HW005-XXL-XAM', 599000, 7),
+(5, 2, 4, 'HW005-M-NAVY', 599000, 8), (5, 3, 4, 'HW005-L-NAVY', 599000, 10), (5, 4, 4, 'HW005-XL-NAVY', 599000, 10), (5, 5, 4, 'HW005-XXL-NAVY', 599000, 7);
+
+-- HW006 (6): Đầm ngủ nữ - Size S,M,L - Màu Hồng(6), Be(7)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(6, 1, 6, 'HW006-S-HONG', 449000, 12), (6, 2, 6, 'HW006-M-HONG', 449000, 15), (6, 3, 6, 'HW006-L-HONG', 449000, 10),
+(6, 1, 7, 'HW006-S-BE', 449000, 8), (6, 2, 7, 'HW006-M-BE', 449000, 10), (6, 3, 7, 'HW006-L-BE', 449000, 8);
+
+-- TS001 (7): Áo phông nữ cotton basic - Size S,M,L,XL - Màu Trắng(2), Đen(1), Xám(3)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(7, 1, 2, 'TS001-S-TRANG', 209300, 10), (7, 2, 2, 'TS001-M-TRANG', 209300, 12), (7, 3, 2, 'TS001-L-TRANG', 209300, 8), (7, 4, 2, 'TS001-XL-TRANG', 209300, 5),
+(7, 1, 1, 'TS001-S-DEN', 209300, 8), (7, 2, 1, 'TS001-M-DEN', 209300, 10), (7, 3, 1, 'TS001-L-DEN', 209300, 6),
+(7, 1, 3, 'TS001-S-XAM', 209300, 5), (7, 2, 3, 'TS001-M-XAM', 209300, 7), (7, 3, 3, 'TS001-L-XAM', 209300, 4);
+
+-- TS002 (8): Áo phông nam cổ tròn - Size S,M,L,XL - Màu Trắng(2), Đen(1), Xám(3)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(8, 1, 2, 'TS002-S-TRANG', 299000, 12), (8, 2, 2, 'TS002-M-TRANG', 299000, 15), (8, 3, 2, 'TS002-L-TRANG', 299000, 12), (8, 4, 2, 'TS002-XL-TRANG', 299000, 8),
+(8, 1, 1, 'TS002-S-DEN', 299000, 10), (8, 2, 1, 'TS002-M-DEN', 299000, 12), (8, 3, 1, 'TS002-L-DEN', 299000, 10), (8, 4, 1, 'TS002-XL-DEN', 299000, 6),
+(8, 1, 3, 'TS002-S-XAM', 299000, 8), (8, 2, 3, 'TS002-M-XAM', 299000, 10), (8, 3, 3, 'TS002-L-XAM', 299000, 8);
+
+-- TS003 (9): Áo phông unisex form rộng - Size S,M,L,XL,XXL - Màu Trắng(2), Đen(1), Xám(3)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(9, 1, 2, 'TS003-S-TRANG', 349000, 8), (9, 2, 2, 'TS003-M-TRANG', 349000, 10), (9, 3, 2, 'TS003-L-TRANG', 349000, 8), (9, 4, 2, 'TS003-XL-TRANG', 349000, 5), (9, 5, 2, 'TS003-XXL-TRANG', 349000, 4),
+(9, 1, 1, 'TS003-S-DEN', 349000, 8), (9, 2, 1, 'TS003-M-DEN', 349000, 10), (9, 3, 1, 'TS003-L-DEN', 349000, 8), (9, 4, 1, 'TS003-XL-DEN', 349000, 5),
+(9, 1, 3, 'TS003-S-XAM', 349000, 6), (9, 2, 3, 'TS003-M-XAM', 349000, 8), (9, 3, 3, 'TS003-L-XAM', 349000, 6);
+
+-- TS004 (10): Áo phông nữ cổ V - Size S,M,L,XL - Màu Trắng(2), Đen(1), Hồng(6)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(10, 1, 2, 'TS004-S-TRANG', 259000, 8), (10, 2, 2, 'TS004-M-TRANG', 259000, 10), (10, 3, 2, 'TS004-L-TRANG', 259000, 6), (10, 4, 2, 'TS004-XL-TRANG', 259000, 4),
+(10, 1, 1, 'TS004-S-DEN', 259000, 8), (10, 2, 1, 'TS004-M-DEN', 259000, 10), (10, 3, 1, 'TS004-L-DEN', 259000, 6),
+(10, 1, 6, 'TS004-S-HONG', 259000, 6), (10, 2, 6, 'TS004-M-HONG', 259000, 8), (10, 3, 6, 'TS004-L-HONG', 259000, 4);
+
+-- TS005 (11): Áo phông nữ dài tay - Size S,M,L,XL - Màu Trắng(2), Xám(3), Hồng(6)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(11, 1, 2, 'TS005-S-TRANG', 359000, 6), (11, 2, 2, 'TS005-M-TRANG', 359000, 8), (11, 3, 2, 'TS005-L-TRANG', 359000, 5), (11, 4, 2, 'TS005-XL-TRANG', 359000, 3),
+(11, 1, 3, 'TS005-S-XAM', 359000, 5), (11, 2, 3, 'TS005-M-XAM', 359000, 7), (11, 3, 3, 'TS005-L-XAM', 359000, 4),
+(11, 1, 6, 'TS005-S-HONG', 359000, 4), (11, 2, 6, 'TS005-M-HONG', 359000, 6), (11, 3, 6, 'TS005-L-HONG', 359000, 3);
+
+-- VY001 (12): Váy nữ maxi - Size S,M,L - Màu Hồng(6), Be(7), Navy(4)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(12, 1, 6, 'VY001-S-HONG', 699000, 8), (12, 2, 6, 'VY001-M-HONG', 699000, 10), (12, 3, 6, 'VY001-L-HONG', 699000, 7),
+(12, 1, 7, 'VY001-S-BE', 699000, 6), (12, 2, 7, 'VY001-M-BE', 699000, 8), (12, 3, 7, 'VY001-L-BE', 699000, 5),
+(12, 1, 4, 'VY001-S-NAVY', 699000, 5), (12, 2, 4, 'VY001-M-NAVY', 699000, 6), (12, 3, 4, 'VY001-L-NAVY', 699000, 4);
+
+-- VY002 (13): Chân váy mini - Size S,M,L,XL - Màu Đen(1), Xám(3)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(13, 1, 1, 'VY002-S-DEN', 349000, 12), (13, 2, 1, 'VY002-M-DEN', 349000, 15), (13, 3, 1, 'VY002-L-DEN', 349000, 10), (13, 4, 1, 'VY002-XL-DEN', 349000, 6),
+(13, 1, 3, 'VY002-S-XAM', 349000, 8), (13, 2, 3, 'VY002-M-XAM', 349000, 10), (13, 3, 3, 'VY002-L-XAM', 349000, 7);
+
+-- VY003 (14): Váy đầm suông - Size S,M,L,XL - Màu Hồng(6), Be(7), Trắng(2)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(14, 1, 6, 'VY003-S-HONG', 499000, 8), (14, 2, 6, 'VY003-M-HONG', 499000, 10), (14, 3, 6, 'VY003-L-HONG', 499000, 7), (14, 4, 6, 'VY003-XL-HONG', 499000, 4),
+(14, 1, 7, 'VY003-S-BE', 499000, 6), (14, 2, 7, 'VY003-M-BE', 499000, 8), (14, 3, 7, 'VY003-L-BE', 499000, 5),
+(14, 1, 2, 'VY003-S-TRANG', 499000, 5), (14, 2, 2, 'VY003-M-TRANG', 499000, 7), (14, 3, 2, 'VY003-L-TRANG', 499000, 4);
+
+-- VY004 (15): Váy chữ A - Size S,M,L,XL - Màu Trắng(2), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(15, 1, 2, 'VY004-S-TRANG', 449000, 10), (15, 2, 2, 'VY004-M-TRANG', 449000, 12), (15, 3, 2, 'VY004-L-TRANG', 449000, 8), (15, 4, 2, 'VY004-XL-TRANG', 449000, 5),
+(15, 1, 1, 'VY004-S-DEN', 449000, 8), (15, 2, 1, 'VY004-M-DEN', 449000, 10), (15, 3, 1, 'VY004-L-DEN', 449000, 7), (15, 4, 1, 'VY004-XL-DEN', 449000, 4);
+
+-- VY005 (16): Váy đầm maxi - Size S,M,L - Màu Be(7), Hồng(6)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(16, 1, 7, 'VY005-S-BE', 799000, 6), (16, 2, 7, 'VY005-M-BE', 799000, 8), (16, 3, 7, 'VY005-L-BE', 799000, 5),
+(16, 1, 6, 'VY005-S-HONG', 799000, 5), (16, 2, 6, 'VY005-M-HONG', 799000, 7), (16, 3, 6, 'VY005-L-HONG', 799000, 4);
+
+-- FE001 (17): Quần soóc bé trai - Size S,M,L,XL - Màu Trắng(2), Xanh Baby(13)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(17, 1, 2, 'FE001-S-TRANG', 499000, 10), (17, 2, 2, 'FE001-M-TRANG', 499000, 12), (17, 3, 2, 'FE001-L-TRANG', 499000, 10), (17, 4, 2, 'FE001-XL-TRANG', 499000, 6),
+(17, 1, 13, 'FE001-S-BABY', 499000, 8), (17, 2, 13, 'FE001-M-BABY', 499000, 10), (17, 3, 13, 'FE001-L-BABY', 499000, 8);
+
+-- FE002 (18): Quần soóc active nam - Size S,M,L,XL - Màu Đen(1), Xám(3)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(18, 1, 1, 'FE002-S-DEN', 599000, 8), (18, 2, 1, 'FE002-M-DEN', 599000, 10), (18, 3, 1, 'FE002-L-DEN', 599000, 8), (18, 4, 1, 'FE002-XL-DEN', 599000, 5),
+(18, 1, 3, 'FE002-S-XAM', 599000, 6), (18, 2, 3, 'FE002-M-XAM', 599000, 8), (18, 3, 3, 'FE002-L-XAM', 599000, 6), (18, 4, 3, 'FE002-XL-XAM', 599000, 4);
+
+-- FE003 (19): Quần soóc nam - Size S,M,L,XL,XXL - Màu Trắng(2), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(19, 1, 2, 'FE003-S-TRANG', 599000, 12), (19, 2, 2, 'FE003-M-TRANG', 599000, 15), (19, 3, 2, 'FE003-L-TRANG', 599000, 12), (19, 4, 2, 'FE003-XL-TRANG', 599000, 8), (19, 5, 2, 'FE003-XXL-TRANG', 599000, 5),
+(19, 1, 1, 'FE003-S-DEN', 599000, 10), (19, 2, 1, 'FE003-M-DEN', 599000, 12), (19, 3, 1, 'FE003-L-DEN', 599000, 10), (19, 4, 1, 'FE003-XL-DEN', 599000, 6), (19, 5, 1, 'FE003-XXL-DEN', 599000, 4);
+
+-- FE004 (20): Áo polo nam - Size S,M,L,XL,XXL - Màu Trắng(2), Navy(4)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(20, 1, 2, 'FE004-S-TRANG', 399000, 10), (20, 2, 2, 'FE004-M-TRANG', 399000, 12), (20, 3, 2, 'FE004-L-TRANG', 399000, 10), (20, 4, 2, 'FE004-XL-TRANG', 399000, 6), (20, 5, 2, 'FE004-XXL-TRANG', 399000, 4),
+(20, 1, 4, 'FE004-S-NAVY', 399000, 8), (20, 2, 4, 'FE004-M-NAVY', 399000, 10), (20, 3, 4, 'FE004-L-NAVY', 399000, 8), (20, 4, 4, 'FE004-XL-NAVY', 399000, 5), (20, 5, 4, 'FE004-XXL-NAVY', 399000, 3);
+
+-- FE005 (21): Áo sơ mi nam dài tay - Size S,M,L,XL - Màu Trắng(2), Xanh Baby(13), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(21, 1, 2, 'FE005-S-TRANG', 599000, 8), (21, 2, 2, 'FE005-M-TRANG', 599000, 10), (21, 3, 2, 'FE005-L-TRANG', 599000, 6), (21, 4, 2, 'FE005-XL-TRANG', 599000, 4),
+(21, 1, 13, 'FE005-S-BABY', 599000, 6), (21, 2, 13, 'FE005-M-BABY', 599000, 8), (21, 3, 13, 'FE005-L-BABY', 599000, 5),
+(21, 1, 1, 'FE005-S-DEN', 599000, 5), (21, 2, 1, 'FE005-M-DEN', 599000, 7), (21, 3, 1, 'FE005-L-DEN', 599000, 4);
+
+-- FE006 (22): Áo blouse nữ - Size S,M,L,XL - Màu Trắng(2), Xanh Baby(13)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(22, 1, 2, 'FE006-S-TRANG', 349000, 12), (22, 2, 2, 'FE006-M-TRANG', 349000, 15), (22, 3, 2, 'FE006-L-TRANG', 349000, 10), (22, 4, 2, 'FE006-XL-TRANG', 349000, 6),
+(22, 1, 13, 'FE006-S-BABY', 349000, 8), (22, 2, 13, 'FE006-M-BABY', 349000, 10), (22, 3, 13, 'FE006-L-BABY', 349000, 7);
+
+-- FE007 (23): Quần jeans nam straight - Size S,M,L,XL,XXL - Màu Navy(4), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(23, 1, 4, 'FE007-S-NAVY', 799000, 6), (23, 2, 4, 'FE007-M-NAVY', 799000, 8), (23, 3, 4, 'FE007-L-NAVY', 799000, 6), (23, 4, 4, 'FE007-XL-NAVY', 799000, 4), (23, 5, 4, 'FE007-XXL-NAVY', 799000, 3),
+(23, 1, 1, 'FE007-S-DEN', 799000, 5), (23, 2, 1, 'FE007-M-DEN', 799000, 7), (23, 3, 1, 'FE007-L-DEN', 799000, 5), (23, 4, 1, 'FE007-XL-DEN', 799000, 3);
+
+-- FE008 (24): Áo Thun bé gái - Size S,M,L,XL - Màu Hồng(6), Trắng(2)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(24, 1, 6, 'FE008-S-HONG', 199000, 15), (24, 2, 6, 'FE008-M-HONG', 199000, 18), (24, 3, 6, 'FE008-L-HONG', 199000, 12), (24, 4, 6, 'FE008-XL-HONG', 199000, 8),
+(24, 1, 2, 'FE008-S-TRANG', 199000, 12), (24, 2, 2, 'FE008-M-TRANG', 199000, 15), (24, 3, 2, 'FE008-L-TRANG', 199000, 10), (24, 4, 2, 'FE008-XL-TRANG', 199000, 6);
+
+-- BS001 (25): Áo phông nam dài tay - Size S,M,L,XL,XXL - Màu Trắng(2), Xám(3), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(25, 1, 2, 'BS001-S-TRANG', 349000, 15), (25, 2, 2, 'BS001-M-TRANG', 349000, 18), (25, 3, 2, 'BS001-L-TRANG', 349000, 15), (25, 4, 2, 'BS001-XL-TRANG', 349000, 10), (25, 5, 2, 'BS001-XXL-TRANG', 349000, 6),
+(25, 1, 3, 'BS001-S-XAM', 349000, 10), (25, 2, 3, 'BS001-M-XAM', 349000, 12), (25, 3, 3, 'BS001-L-XAM', 349000, 10), (25, 4, 3, 'BS001-XL-XAM', 349000, 6),
+(25, 1, 1, 'BS001-S-DEN', 349000, 8), (25, 2, 1, 'BS001-M-DEN', 349000, 10), (25, 3, 1, 'BS001-L-DEN', 349000, 8), (25, 4, 1, 'BS001-XL-DEN', 349000, 5);
+
+-- BS002 (26): Quần jeans nữ slim fit - Size S,M,L,XL - Màu Navy(4), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(26, 1, 4, 'BS002-S-NAVY', 599000, 10), (26, 2, 4, 'BS002-M-NAVY', 599000, 15), (26, 3, 4, 'BS002-L-NAVY', 599000, 12), (26, 4, 4, 'BS002-XL-NAVY', 599000, 8),
+(26, 1, 1, 'BS002-S-DEN', 599000, 8), (26, 2, 1, 'BS002-M-DEN', 599000, 12), (26, 3, 1, 'BS002-L-DEN', 599000, 10), (26, 4, 1, 'BS002-XL-DEN', 599000, 6);
+
+-- BS003 (27): Áo sơ mi nữ ngắn tay - Size S,M,L,XL - Màu Trắng(2), Hồng(6)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(27, 1, 2, 'BS003-S-TRANG', 399000, 12), (27, 2, 2, 'BS003-M-TRANG', 399000, 15), (27, 3, 2, 'BS003-L-TRANG', 399000, 12), (27, 4, 2, 'BS003-XL-TRANG', 399000, 8),
+(27, 1, 6, 'BS003-S-HONG', 399000, 10), (27, 2, 6, 'BS003-M-HONG', 399000, 12), (27, 3, 6, 'BS003-L-HONG', 399000, 10), (27, 4, 6, 'BS003-XL-HONG', 399000, 5);
+
+-- BS004 (28): Quần soóc nữ - Size S,M,L,XL - Màu Đen(1), Trắng(2), Xám(3)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(28, 1, 1, 'BS004-S-DEN', 349000, 14), (28, 2, 1, 'BS004-M-DEN', 349000, 18), (28, 3, 1, 'BS004-L-DEN', 349000, 14), (28, 4, 1, 'BS004-XL-DEN', 349000, 8),
+(28, 1, 2, 'BS004-S-TRANG', 349000, 10), (28, 2, 2, 'BS004-M-TRANG', 349000, 12), (28, 3, 2, 'BS004-L-TRANG', 349000, 10), (28, 4, 2, 'BS004-XL-TRANG', 349000, 5),
+(28, 1, 3, 'BS004-S-XAM', 349000, 8), (28, 2, 3, 'BS004-M-XAM', 349000, 10), (28, 3, 3, 'BS004-L-XAM', 349000, 8);
+
+-- BS005 (29): Áo polo nữ - Size S,M,L,XL - Màu Trắng(2), Hồng(6), Navy(4)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(29, 1, 2, 'BS005-S-TRANG', 399000, 10), (29, 2, 2, 'BS005-M-TRANG', 399000, 12), (29, 3, 2, 'BS005-L-TRANG', 399000, 10), (29, 4, 2, 'BS005-XL-TRANG', 399000, 6),
+(29, 1, 6, 'BS005-S-HONG', 399000, 8), (29, 2, 6, 'BS005-M-HONG', 399000, 10), (29, 3, 6, 'BS005-L-HONG', 399000, 8), (29, 4, 6, 'BS005-XL-HONG', 399000, 4),
+(29, 1, 4, 'BS005-S-NAVY', 399000, 6), (29, 2, 4, 'BS005-M-NAVY', 399000, 8), (29, 3, 4, 'BS005-L-NAVY', 399000, 6);
+
+-- BS006 (30): Quần jeans bé gái - Size S,M,L,XL - Màu Navy(4), Đen(1)
+INSERT IGNORE INTO product_variants (product_id, size_id, color_id, sku, price, stock) VALUES
+(30, 1, 4, 'BS006-S-NAVY', 349000, 12), (30, 2, 4, 'BS006-M-NAVY', 349000, 15), (30, 3, 4, 'BS006-L-NAVY', 349000, 12), (30, 4, 4, 'BS006-XL-NAVY', 349000, 6),
+(30, 1, 1, 'BS006-S-DEN', 349000, 8), (30, 2, 1, 'BS006-M-DEN', 349000, 10), (30, 3, 1, 'BS006-L-DEN', 349000, 8), (30, 4, 1, 'BS006-XL-DEN', 349000, 5);
+
+-- =====================================================
+-- UPDATE products.stock FROM variants (using temp table, safe-mode compatible)
+-- =====================================================
+CREATE TEMPORARY TABLE IF NOT EXISTS tmp_variant_stock AS
+  SELECT product_id, SUM(stock) AS total_stock
+  FROM product_variants GROUP BY product_id;
+
+UPDATE products p
+INNER JOIN tmp_variant_stock v ON v.product_id = p.id
+SET p.stock = v.total_stock;
+
+DROP TEMPORARY TABLE IF EXISTS tmp_variant_stock;
+
+-- =====================================================
+-- BEST SELLERS
+-- =====================================================
+INSERT IGNORE INTO best_sellers (product_id, sort_order, is_active) VALUES
+(7, 1, TRUE), (8, 2, TRUE), (19, 3, TRUE), (15, 4, TRUE),
+(12, 5, TRUE), (25, 6, TRUE), (26, 7, TRUE), (27, 8, TRUE);
+
+-- =====================================================
+-- NEWS (Blog)
+-- =====================================================
+INSERT IGNORE INTO news (title, slug, summary, content, thumbnail, author_name, category, view_count, is_featured, is_published, published_at) VALUES
+('Size L là bao nhiêu kg? Bảng size chuẩn nam nữ & cách chọn đúng', 'size-l-la-bao-nhieu-kg', 'Tìm hiểu size L là bao nhiêu kg với bảng size chuẩn cho nam và nữ, cùng hướng dẫn cách đo cơ thể và chọn size đúng.', '<p>Nội dung chi tiết về bảng size...</p>', 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1275&q=80', 'CANIFA', 'Thuật ngữ - Kiến thức', 1250, FALSE, TRUE, NOW()),
+('Chân váy dài mặc với áo gì đẹp? 15 cách phối chuẩn dáng', 'chan-vay-dai-mac-voi-ao-gi', 'Hướng dẫn phối đồ với chân váy dài đẹp và chuẩn dáng cho mọi vóc dáng.', '<p>Nội dung chi tiết về phối đồ...</p>', 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=556&q=80', 'CANIFA', 'Phối đồ', 890, FALSE, TRUE, DATE_SUB(NOW(), INTERVAL 1 DAY)),
+('Outfit Đà Lạt đẹp: Cách phối đồ theo mùa và dáng người', 'outfit-da-lat', 'Gợi ý outfit Đà Lạt đẹp cho mùa hè và mùa đông, phù hợp mọi phong cách.', '<p>Nội dung chi tiết về outfit...</p>', 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=556&q=80', 'CANIFA', 'Phối đồ', 670, FALSE, TRUE, DATE_SUB(NOW(), INTERVAL 2 DAY)),
+('Size S là bao nhiêu kg? Bảng size chuẩn nam nữ chi tiết', 'size-s-la-bao-nhieu-kg', 'Tìm hiểu size S là bao nhiêu kg với bảng size chuẩn chi tiết cho nam và nữ.', '<p>Nội dung chi tiết về size...</p>', 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=556&q=80', 'CANIFA', 'Thuật ngữ - Kiến thức', 430, FALSE, TRUE, DATE_SUB(NOW(), INTERVAL 3 DAY)),
+('Stylist là gì? Công việc, kỹ năng và cơ hội nghề nghiệp 2026', 'stylist-la-gi', 'Tìm hiểu về nghề stylist, công việc, kỹ năng cần có và cơ hội nghề nghiệp.', '<p>Nội dung chi tiết về nghề stylist...</p>', 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=556&q=80', 'CANIFA', 'Thuật ngữ - Kiến thức', 320, FALSE, TRUE, DATE_SUB(NOW(), INTERVAL 4 DAY)),
+('Xu hướng thời trang 2026: Những gì đang hot trên thị trường', 'xu-huong-thoi-trang-2026', 'Khám phá những xu hướng thời trang nổi bật nhất năm 2026 tại Việt Nam và thế giới.', '<p>Nội dung chi tiết về xu hướng...</p>', 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=556&q=80', 'CANIFA', 'Xu hướng', 580, FALSE, TRUE, DATE_SUB(NOW(), INTERVAL 5 DAY));
+
+-- =====================================================
+-- USERS (Admin + Customers)
+-- =====================================================
+INSERT IGNORE INTO users (name, email, password, role, is_active, created_at) VALUES
+('Admin CANIFA', 'admin@canifa.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', TRUE, NOW()),
+('Nguyễn Văn A', 'user1@example.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'user', TRUE, NOW()),
+('Trần Thị B', 'user2@example.com', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'user', TRUE, NOW());
+
+-- =====================================================
+-- NEWSLETTER
+-- =====================================================
+INSERT IGNORE INTO newsletter (email, is_active, subscribed_at) VALUES
+('customer1@example.com', TRUE, NOW()),
+('customer2@example.com', TRUE, NOW()),
+('customer3@example.com', TRUE, DATE_SUB(NOW(), INTERVAL 1 MONTH)),
+('fashionista@example.com', TRUE, DATE_SUB(NOW(), INTERVAL 2 WEEK));
+
+-- =====================================================
+-- SETTINGS
+-- =====================================================
+INSERT IGNORE INTO settings (setting_key, setting_value, setting_type, group_name) VALUES
+('store_name', 'CANIFA', 'string', 'general'),
+('store_phone', '19001234', 'string', 'general'),
+('store_email', 'contact@canifa.com', 'string', 'general'),
+('store_address', 'Hà Nội, Việt Nam', 'string', 'general'),
+('shipping_fee_default', '30000', 'number', 'shipping'),
+('free_shipping_threshold', '499000', 'number', 'shipping'),
+('points_per_vnd', '1', 'number', 'loyalty'),
+('welcome_points', '100', 'number', 'loyalty'),
+('app_download_url', 'https://app.canifa.com', 'string', 'app'),
+('clive_enabled', 'true', 'boolean', 'app');

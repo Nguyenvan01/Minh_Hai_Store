@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clothing-store-secret-key-2026'
+const ADMIN_ROLES = ['admin', 'manager', 'staff', 'warehouse']
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization
@@ -11,13 +12,13 @@ function authMiddleware(req, res, next) {
   const token = authHeader.split(' ')[1]
   try {
     const decoded = jwt.verify(token, JWT_SECRET)
-    if (decoded.role !== 'admin' && decoded.role !== 'manager' && decoded.role !== 'staff') {
-      return res.status(403).json({ success: false, message: 'Access denied. Admin only.' })
+    if (!ADMIN_ROLES.includes(decoded.role)) {
+      return res.status(403).json({ success: false, message: 'Tài khoản không có quyền truy cập trang quản trị.' })
     }
     req.user = decoded
     next()
   } catch (err) {
-    return res.status(401).json({ success: false, message: 'Invalid or expired token' })
+    return res.status(401).json({ success: false, message: 'Phiên đăng nhập đã hết hạn hoặc không hợp lệ.' })
   }
 }
 
@@ -33,4 +34,4 @@ function optionalAuth(req, res, next) {
   next()
 }
 
-module.exports = { authMiddleware, optionalAuth, JWT_SECRET }
+module.exports = { authMiddleware, optionalAuth, JWT_SECRET, ADMIN_ROLES }

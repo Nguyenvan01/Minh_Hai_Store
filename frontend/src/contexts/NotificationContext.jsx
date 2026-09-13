@@ -19,7 +19,7 @@ const ICON_MAP = {
 }
 
 const COLOR_MAP = {
-  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  info: { bg: 'bg-red-50', text: 'text-[#d71920]' },
   green: { bg: 'bg-green-50', text: 'text-green-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
   red: { bg: 'bg-red-50', text: 'text-red-600' },
@@ -73,7 +73,7 @@ export function NotificationProvider({ children }) {
       time: new Date().toISOString(),
       link: data.link || '/admin/orders',
       icon: data.icon || 'check_circle',
-      color: data.color || 'blue',
+      color: data.color || 'info',
       isNew: true,
     }
     setNotifications(prev => [notif, ...prev].slice(0, 50))

@@ -46,7 +46,15 @@ export const AdminAuthProvider = ({ children }) => {
       setAdmin(user)
       return { success: true }
     } catch (err) {
-      const message = err.response?.data?.message || 'Đăng nhập thất bại'
+      const status = err.response?.status
+      let message = 'Đăng nhập thất bại'
+      if (status === 401) {
+        message = 'Email hoặc mật khẩu không đúng'
+      } else if (status === 403) {
+        message = err.response?.data?.message || 'Tài khoản không có quyền truy cập trang quản trị'
+      } else {
+        message = err.response?.data?.message || 'Đăng nhập thất bại'
+      }
       setError(message)
       return { success: false, message }
     }

@@ -59,8 +59,8 @@ export default function AdminProducts() {
   const fetchFilters = async () => {
     try {
       const [catRes, brandRes] = await Promise.all([
-        api.get('/categories'),
-        api.get('/brands'),
+        api.get('/admin/categories'),
+        api.get('/admin/brands'),
       ])
       setCategories(catRes.categories || [])
       setBrands(brandRes.brands || [])
@@ -132,14 +132,14 @@ export default function AdminProducts() {
               placeholder="Tìm kiếm sản phẩm, SKU..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100"
             />
           </div>
           {/* Filters */}
           <select
             value={category}
             onChange={(e) => { setCategory(e.target.value); setPage(1) }}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-100"
           >
             <option value="">Tất cả danh mục</option>
             {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -147,14 +147,14 @@ export default function AdminProducts() {
           <select
             value={brand}
             onChange={(e) => { setBrand(e.target.value); setPage(1) }}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-100"
           >
             <option value="">Tất cả thương hiệu</option>
             {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           <Link
             to="/admin/products/create"
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#d71920] text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
           >
             <Plus size={18} />
             Thêm sản phẩm
@@ -165,8 +165,8 @@ export default function AdminProducts() {
       {/* Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {selected.length > 0 && (
-          <div className="px-5 py-3 bg-blue-50 border-b border-blue-100 flex items-center gap-3">
-            <span className="text-sm text-blue-700 font-medium">{selected.length} sản phẩm được chọn</span>
+          <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center gap-3">
+            <span className="text-sm text-red-700 font-medium">{selected.length} sản phẩm được chọn</span>
             <button className="text-sm text-red-600 hover:underline font-medium">Xóa đã chọn</button>
           </div>
         )}
@@ -264,7 +264,7 @@ export default function AdminProducts() {
                     <div className="flex items-center justify-center gap-1">
                       <Link
                         to={`/product/${product.slug}`}
-                        className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                        className="p-2 rounded-lg text-gray-400 hover:text-[#d71920] hover:bg-red-50 transition-colors"
                         title="Xem"
                       >
                         <Eye size={16} />
@@ -316,7 +316,7 @@ export default function AdminProducts() {
                     key={p}
                     onClick={() => setPage(p)}
                     className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                      page === p ? 'bg-blue-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      page === p ? 'bg-[#d71920] text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
                     }`}
                   >
                     {p}

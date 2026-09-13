@@ -40,8 +40,12 @@ module.exports = {
 
       const product = products[0];
 
-      // Tăng view count
-      await db.query('UPDATE products SET view_count = view_count + 1 WHERE id = ?', [product.id]);
+      // Tăng view count (chỉ nếu cột tồn tại)
+      try {
+        await db.query('UPDATE products SET view_count = view_count + 1 WHERE id = ?', [product.id]);
+      } catch (e) {
+        // Cột view_count không tồn tại, bỏ qua
+      }
 
       // Lấy danh sách hình ảnh
       const [images] = await db.query(`
@@ -145,8 +149,7 @@ module.exports = {
       console.error('Error fetching product:', error);
       res.status(500).json({
         success: false,
-        message: 'Không thể tải thông tin sản phẩm',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Không thể tải thông tin sản phẩm'
       });
     }
   },
@@ -158,23 +161,38 @@ module.exports = {
   getProducts: async (req, res) => {
     try {
       const {
+        search,
         category,
         brand,
         gender,
         age_group,
         min_price,
         max_price,
+        size,
+        color,
+        discount,
         sort = 'created_at',
         order = 'desc',
         page = 1,
         limit = 12
       } = req.query;
 
-      console.log('[getProducts] Query params:', req.query);
-      console.log('[getProducts] age_group:', age_group);
-
       let whereClause = 'WHERE p.is_active = TRUE';
       const params = [];
+
+      const splitParam = (value) => String(value || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+
+      if (search && search.trim()) {
+        const keyword = `%${search.trim()}%`;
+        whereClause += ` AND (
+          p.name LIKE ? OR p.sku LIKE ? OR p.short_description LIKE ? OR
+          p.description LIKE ? OR c.name LIKE ? OR b.name LIKE ?
+        )`;
+        params.push(keyword, keyword, keyword, keyword, keyword, keyword);
+      }
 
       if (category) {
         whereClause += ' AND c.slug = ?';
@@ -192,8 +210,13 @@ module.exports = {
       }
 
       if (age_group) {
-        whereClause += ' AND p.age_group = ?';
-        params.push(age_group);
+        if (age_group === 'kids') {
+          whereClause += ' AND p.gender IN (?, ?)';
+          params.push('kids_boy', 'kids_girl');
+        } else {
+          whereClause += ' AND p.gender = ?';
+          params.push(age_group);
+        }
       }
 
       if (min_price) {
@@ -206,6 +229,42 @@ module.exports = {
         params.push(max_price);
       }
 
+      const sizes = splitParam(size);
+      if (sizes.length > 0) {
+        whereClause += ` AND EXISTS (
+          SELECT 1 FROM product_variants pv_size
+          LEFT JOIN sizes s_filter ON pv_size.size_id = s_filter.id
+          WHERE pv_size.product_id = p.id
+            AND pv_size.is_active = TRUE
+            AND (s_filter.code IN (?) OR s_filter.name IN (?))
+        )`;
+        params.push(sizes, sizes);
+      }
+
+      const colors = splitParam(color);
+      if (colors.length > 0) {
+        whereClause += ` AND EXISTS (
+          SELECT 1 FROM product_variants pv_color
+          LEFT JOIN colors c_filter ON pv_color.color_id = c_filter.id
+          WHERE pv_color.product_id = p.id
+            AND pv_color.is_active = TRUE
+            AND (
+              CAST(c_filter.id AS CHAR) IN (?) OR
+              c_filter.code IN (?) OR
+              c_filter.name IN (?) OR
+              LOWER(REPLACE(c_filter.name, ' ', '-')) IN (?)
+            )
+        )`;
+        params.push(colors, colors, colors, colors);
+      }
+
+      const discounts = splitParam(discount).map(Number).filter(Number.isFinite);
+      if (discounts.length > 0) {
+        const minDiscount = Math.min(...discounts);
+        whereClause += ' AND p.compare_price IS NOT NULL AND p.compare_price > p.price AND ((1 - p.price / p.compare_price) * 100) >= ?';
+        params.push(minDiscount);
+      }
+
       // Validate sort column
       const allowedSorts = ['created_at', 'price', 'name', 'total_sold', 'view_count'];
       const sortColumn = allowedSorts.includes(sort) ? sort : 'created_at';
@@ -214,7 +273,6 @@ module.exports = {
       const offset = (parseInt(page) - 1) * parseInt(limit);
 
       // Lấy tổng số
-      console.log('[getProducts] SQL params:', params);
       const [countResult] = await db.query(`
         SELECT COUNT(*) as total
         FROM products p
@@ -223,10 +281,8 @@ module.exports = {
         ${whereClause}
       `, params);
 
-      // Lấy danh sách sản phẩm
-      console.log('[getProducts] Before SELECT, params:', params, 'whereClause:', whereClause);
       const [products] = await db.query(`
-        SELECT 
+        SELECT
           p.id,
           p.name,
           p.slug,
@@ -235,7 +291,6 @@ module.exports = {
           p.compare_price,
           p.stock,
           p.gender,
-          p.age_group,
           p.is_featured,
           c.name as category_name,
           c.slug as category_slug,
@@ -251,11 +306,6 @@ module.exports = {
         ORDER BY p.${sortColumn} ${sortOrder}
         LIMIT ? OFFSET ?
       `, [...params, parseInt(limit), offset]);
-      
-      console.log('[getProducts] Products count:', products.length);
-      if (products.length > 0) {
-        console.log('[getProducts] First product age_group:', products[0].age_group);
-      }
 
       res.json({
         success: true,
@@ -280,8 +330,7 @@ module.exports = {
       console.error('Error fetching products:', error);
       res.status(500).json({
         success: false,
-        message: 'Không thể tải danh sách sản phẩm',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Không thể tải danh sách sản phẩm'
       });
     }
   },
@@ -293,19 +342,18 @@ module.exports = {
   getKidsCategories: async (req, res) => {
     try {
       const [categories] = await db.query(`
-        SELECT 
+        SELECT
           c.slug,
           c.name,
           COUNT(p.id) as product_count
         FROM categories c
-        LEFT JOIN products p ON p.category_id = c.id AND p.age_group = 'kids' AND p.is_active = TRUE
+        LEFT JOIN products p ON p.category_id = c.id AND p.gender IN ('kids_boy', 'kids_girl') AND p.is_active = TRUE
         WHERE c.slug IN ('ao-tre-em', 'quan-tre-em', 'vay-tre-em', 'dam-tre-em', 'bo-do-tre-em')
         GROUP BY c.slug, c.name
       `);
 
-      // Đếm tổng số sản phẩm trẻ em
       const [totalResult] = await db.query(`
-        SELECT COUNT(*) as total FROM products WHERE age_group = 'kids' AND is_active = TRUE
+        SELECT COUNT(*) as total FROM products WHERE gender IN ('kids_boy', 'kids_girl') AND is_active = TRUE
       `);
 
       const categoriesWithAll = [
@@ -326,8 +374,148 @@ module.exports = {
       console.error('Error fetching kids categories:', error);
       res.status(500).json({
         success: false,
-        message: 'Không thể tải danh mục trẻ em',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Không thể tải danh mục trẻ em'
+      });
+    }
+  },
+
+  /**
+   * GET /api/products/kids
+   * Lấy danh sách sản phẩm trẻ em với filter
+   */
+  getKidsProducts: async (req, res) => {
+    try {
+      const {
+        category,
+        min_price,
+        max_price,
+        size,
+        color,
+        discount,
+        sort = 'created_at',
+        order = 'desc',
+        page = 1,
+        limit = 12
+      } = req.query;
+
+      let whereClause = 'WHERE p.is_active = TRUE AND p.gender IN (?, ?)';
+      const params = ['kids_boy', 'kids_girl'];
+      const splitParam = (value) => String(value || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+
+      if (category && category !== 'all') {
+        whereClause += ' AND c.slug = ?';
+        params.push(category);
+      }
+
+      if (min_price) {
+        whereClause += ' AND p.price >= ?';
+        params.push(min_price);
+      }
+
+      if (max_price) {
+        whereClause += ' AND p.price <= ?';
+        params.push(max_price);
+      }
+
+      const sizes = splitParam(size);
+      if (sizes.length > 0) {
+        whereClause += ` AND EXISTS (
+          SELECT 1 FROM product_variants pv_size
+          LEFT JOIN sizes s_filter ON pv_size.size_id = s_filter.id
+          WHERE pv_size.product_id = p.id
+            AND pv_size.is_active = TRUE
+            AND (s_filter.code IN (?) OR s_filter.name IN (?))
+        )`;
+        params.push(sizes, sizes);
+      }
+
+      const colors = splitParam(color);
+      if (colors.length > 0) {
+        whereClause += ` AND EXISTS (
+          SELECT 1 FROM product_variants pv_color
+          LEFT JOIN colors c_filter ON pv_color.color_id = c_filter.id
+          WHERE pv_color.product_id = p.id
+            AND pv_color.is_active = TRUE
+            AND (
+              CAST(c_filter.id AS CHAR) IN (?) OR
+              c_filter.code IN (?) OR
+              c_filter.name IN (?) OR
+              LOWER(REPLACE(c_filter.name, ' ', '-')) IN (?)
+            )
+        )`;
+        params.push(colors, colors, colors, colors);
+      }
+
+      const discounts = splitParam(discount).map(Number).filter(Number.isFinite);
+      if (discounts.length > 0) {
+        const minDiscount = Math.min(...discounts);
+        whereClause += ' AND p.compare_price IS NOT NULL AND p.compare_price > p.price AND ((1 - p.price / p.compare_price) * 100) >= ?';
+        params.push(minDiscount);
+      }
+
+      const allowedSorts = ['created_at', 'price', 'name', 'total_sold', 'view_count'];
+      const sortColumn = allowedSorts.includes(sort) ? sort : 'created_at';
+      const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+
+      const [countResult] = await db.query(`
+        SELECT COUNT(*) as total
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        ${whereClause}
+      `, params);
+
+      const [products] = await db.query(`
+        SELECT
+          p.id,
+          p.name,
+          p.slug,
+          p.short_description,
+          p.price,
+          p.compare_price,
+          p.stock,
+          p.gender,
+          p.is_featured,
+          c.name as category_name,
+          c.slug as category_slug,
+          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url,
+          (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as avg_rating,
+          (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as review_count
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        ${whereClause}
+        ORDER BY p.${sortColumn} ${sortOrder}
+        LIMIT ? OFFSET ?
+      `, [...params, parseInt(limit), offset]);
+
+      res.json({
+        success: true,
+        data: {
+          products: products.map(p => ({
+            ...p,
+            avg_rating: parseFloat(p.avg_rating) || 0,
+            review_count: parseInt(p.review_count) || 0,
+            image_url: p.image_url || 'https://via.placeholder.com/400x533',
+            is_on_sale: p.compare_price && p.compare_price > p.price
+          })),
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: parseInt(countResult[0].total) || 0,
+            total_pages: Math.ceil(parseInt(countResult[0].total) / parseInt(limit))
+          }
+        }
+      });
+
+    } catch (error) {
+      console.error('Error fetching kids products:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Không thể tải sản phẩm trẻ em'
       });
     }
   },
@@ -392,8 +580,84 @@ module.exports = {
       console.error('Error searching products:', error);
       res.status(500).json({
         success: false,
-        message: 'Không thể tìm kiếm sản phẩm',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Không thể tìm kiếm sản phẩm'
+      });
+    }
+  },
+
+  /**
+   * GET /api/products/suggested
+   * Lấy sản phẩm gợi ý cho cart drawer
+   */
+  getSuggestedProducts: async (req, res) => {
+    try {
+      const { exclude, limit = 6 } = req.query;
+      let excludeClause = '';
+      const params = [];
+
+      if (exclude) {
+        const excludeIds = exclude.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+        if (excludeIds.length > 0) {
+          excludeClause = 'WHERE p.id NOT IN (?) AND p.is_active = TRUE';
+          params.push(excludeIds);
+        } else {
+          excludeClause = 'WHERE p.is_active = TRUE';
+        }
+      } else {
+        excludeClause = 'WHERE p.is_active = TRUE';
+      }
+
+      const [products] = await db.query(`
+        SELECT
+          p.id,
+          p.name,
+          p.slug,
+          p.price,
+          p.compare_price,
+          p.is_online_exclusive,
+          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url,
+          (SELECT COUNT(*) FROM product_variants WHERE product_id = p.id AND is_active = TRUE) as variant_count,
+          (SELECT HEX(hex_code) FROM colors c
+           JOIN product_variants pv ON pv.color_id = c.id
+           WHERE pv.product_id = p.id AND c.hex_code IS NOT NULL
+           LIMIT 1) as color_hex
+        FROM products p
+        ${excludeClause}
+        ORDER BY p.is_featured DESC, p.view_count DESC, p.total_sold DESC
+        LIMIT ?
+      `, [...params, parseInt(limit)]);
+
+      const productsWithColors = await Promise.all(products.map(async (product) => {
+        const [variants] = await db.query(`
+          SELECT c.name, c.hex_code
+          FROM product_variants pv
+          JOIN colors c ON pv.color_id = c.id
+          WHERE pv.product_id = ? AND c.hex_code IS NOT NULL
+          GROUP BY c.id
+          LIMIT 4
+        `, [product.id]);
+
+        return {
+          ...product,
+          image_url: product.image_url || 'https://via.placeholder.com/400x533',
+          is_on_sale: product.compare_price && product.compare_price > product.price,
+          colors: variants.map(v => ({
+            name: v.name,
+            hex: v.hex_code
+          }))
+        };
+      }));
+
+      res.json({
+        success: true,
+        data: productsWithColors
+      });
+
+    } catch (error) {
+      console.error('Error fetching suggested products:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Không thể tải gợi ý sản phẩm'
       });
     }
   }

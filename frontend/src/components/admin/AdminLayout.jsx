@@ -32,7 +32,7 @@ export default function AdminLayout() {
 
   return (
     <NotificationProvider>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#f7f7f7]">
         <AdminSidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
         <AdminHeader title={title} sidebarCollapsed={collapsed} />
         <main

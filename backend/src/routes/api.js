@@ -9,6 +9,8 @@ router.get('/home', homeController.getHomeData);
 // Product routes
 router.get('/products', productController.getProducts);
 router.get('/products/search', productController.searchProducts);
+router.get('/products/suggested', productController.getSuggestedProducts);
+router.get('/products/kids', productController.getKidsProducts);
 router.get('/products/kids-categories', productController.getKidsCategories);
 router.get('/products/:slug', productController.getProductBySlug);
 
@@ -17,10 +19,11 @@ router.get('/news', async (req, res) => {
   try {
     const { category, limit = 20 } = req.query;
     let query = `
-      SELECT id, title, slug, summary, thumbnail, category, tags,
+      SELECT id, title, slug, summary, thumbnail, thumbnail as image_url, category, tags,
              view_count, author_name, published_at
       FROM news
       WHERE is_published = TRUE
+        AND deleted_at IS NULL
         AND published_at IS NOT NULL
         AND published_at <= NOW()
     `;
@@ -42,7 +45,7 @@ router.get('/news', async (req, res) => {
 router.get('/news/:slug', async (req, res) => {
   try {
     const [[article]] = await require('../config/database').query(
-      `SELECT * FROM news WHERE slug = ? AND is_published = TRUE AND published_at <= NOW()`,
+      `SELECT n.*, n.thumbnail as image_url FROM news n WHERE n.slug = ? AND n.is_published = TRUE AND n.deleted_at IS NULL AND n.published_at <= NOW()`,
       [req.params.slug]
     );
     if (!article) {

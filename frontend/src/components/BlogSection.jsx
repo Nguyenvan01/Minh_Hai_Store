@@ -1,144 +1,143 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-const BlogSection = ({ news }) => {
-  const sampleNews = [
-    {
-      id: 1,
-      title: 'Xu hướng thời trang 2026: Những gì đang lên ngôi',
-      slug: 'xu-huong-thoi-trang-2026',
-      category: 'Xu hướng',
-      thumbnail: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80',
-      summary: 'Khám phá những xu hướng thời trang nổi bật nhất năm 2026.',
-      published_at: '2026-04-15'
-    },
-    {
-      id: 2,
-      title: 'Cách phối đồ cho mùa hè năng động',
-      slug: 'cach-phoi-do-cho-mua-he',
-      category: 'Hướng dẫn',
-      thumbnail: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=600&q=80',
-      summary: 'Những tips phối đồ giúp bạn tự tin trong những ngày hè.',
-      published_at: '2026-04-10'
-    },
-    {
-      id: 3,
-      title: 'Bền vững trong thời trang: Lựa chọn xanh cho tương lai',
-      slug: 'ben-vung-trong-thoi-trang',
-      category: 'Cộng đồng',
-      thumbnail: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600&q=80',
-      summary: 'CLOTH cam kết với môi trường bằng những bước tiến trong sản xuất bền vững.',
-      published_at: '2026-04-05'
-    }
-  ]
+const cleanText = (value, fallback = '') => {
+  const text = String(value ?? '').trim()
+  if (!text || ['undefined', 'null', 'nan'].includes(text.toLowerCase())) return fallback
+  return text
+}
 
-  const displayNews = news?.length > 0 ? news : sampleNews
+const getArticleImage = (article) => (
+  cleanText(article?.thumbnail)
+  || cleanText(article?.image_url)
+  || cleanText(article?.thumbnail_url)
+  || cleanText(article?.cover_image)
+  || cleanText(article?.image)
+)
 
-  const formatDate = (dateString) => {
-    if (!dateString) return ''
-    const date = new Date(dateString)
-    return date.toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric', year: 'numeric' })
+function ArticleImage({ article, className }) {
+  const [hasError, setHasError] = useState(false)
+  const imageSrc = getArticleImage(article)
+
+  if (!imageSrc || hasError) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-[#f4f6f9] text-xs font-semibold text-[#74869B]`}>
+        Không có ảnh
+      </div>
+    )
   }
 
   return (
-    <section className="py-20 lg:py-28 max-w-[1400px] mx-auto px-6 md:px-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-14 gap-4">
-        <div>
-          <h2 className="font-display text-4xl md:text-5xl tracking-[-0.02em] text-slate-900 leading-tight">
-            Tin tức & <span className="gradient-text">Bài viết</span>
-          </h2>
-        </div>
-        <Link
-          to="/blog"
-          className="inline-flex items-center gap-2 text-[#4F46E5] font-semibold text-sm hover:gap-3 transition-all duration-200 group"
-        >
-          Xem tất cả
-          <span className="material-symbols-outlined text-base group-hover:translate-x-0.5 transition-transform">arrow_forward</span>
-        </Link>
-      </div>
+    <img
+      src={imageSrc}
+      alt={cleanText(article?.title, 'Tin tức thời trang')}
+      onError={() => setHasError(true)}
+      className={className}
+    />
+  )
+}
 
-      {/* Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {displayNews.slice(0, 3).map((article, index) => (
-          <article
-            key={article.id}
-            className="group relative cursor-pointer"
-          >
-            {/* Gradient border wrapper for first card (featured) */}
-            {index === 0 ? (
-              <div className="rounded-2xl bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] p-[2px]">
-                <div className="rounded-[calc(1rem-2px)] bg-white h-full">
-                  <BlogCard article={article} formatDate={formatDate} isFeatured />
+const formatDate = (dateStr) => {
+  const text = cleanText(dateStr)
+  if (!text) return ''
+
+  const date = new Date(text)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const time = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+  const datePart = date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return `${time} ${datePart}`
+}
+
+const getArticlePath = (article) => {
+  const slug = cleanText(article?.slug)
+  return slug ? `/blog/${slug}` : '/blog'
+}
+
+const BlogSection = ({ news = [], seeMoreHref = '/blog' }) => {
+  const displayNews = Array.isArray(news) ? news.filter(article => cleanText(article?.title)) : []
+  const featured = displayNews[0]
+  const secondary = displayNews.slice(1, 5)
+
+  return (
+    <section className="py-8 lg:py-12">
+      <div className="container">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl lg:text-3xl font-black text-[#333F48]">Tin tức thời trang</h2>
+          {displayNews.length > 0 && (
+            <Link
+              to={seeMoreHref}
+              className="hidden sm:flex items-center gap-1 font-bold text-sm text-[#333F48] hover:text-[#DA291C] transition-colors"
+            >
+              Xem thêm
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+              </svg>
+            </Link>
+          )}
+        </div>
+
+        {displayNews.length === 0 ? (
+          <div className="rounded-xl border border-[#E5EAF0] bg-[#F7F8FA] px-5 py-10 text-center">
+            <p className="text-sm font-medium text-[#74869B]">Chưa có tin tức thời trang nào</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="cursor-pointer group">
+              <Link to={getArticlePath(featured)}>
+                <div className="overflow-hidden rounded" style={{ aspectRatio: '4/3' }}>
+                  <ArticleImage
+                    article={featured}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-103"
+                  />
                 </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-slate-100 hover:border-[#4F46E5]/20 hover:shadow-[0_10px_25px_rgba(79,70,229,0.1)] transition-all duration-300 overflow-hidden">
-                <BlogCard article={article} formatDate={formatDate} />
-              </div>
-            )}
-          </article>
-        ))}
+              </Link>
+              {cleanText(featured.category) && (
+                <p className="font-medium text-sm text-[#DA291C] mt-3">{cleanText(featured.category)}</p>
+              )}
+              <Link to={getArticlePath(featured)}>
+                <h3 className="font-bold text-xl lg:text-2xl text-[#333F48] mt-1 leading-snug line-clamp-2 group-hover:text-[#DA291C] transition-colors">
+                  {cleanText(featured.title)}
+                </h3>
+              </Link>
+              {cleanText(featured.summary) && (
+                <p className="font-medium text-sm text-[#333F48] mt-2 line-clamp-2">{cleanText(featured.summary)}</p>
+              )}
+              {formatDate(featured.published_at || featured.created_at) && (
+                <p className="font-medium text-sm text-[#74869B] mt-2">{formatDate(featured.published_at || featured.created_at)}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-5">
+              {secondary.map(article => (
+                <div key={article.id || cleanText(article.slug) || cleanText(article.title)} className="cursor-pointer group">
+                  <Link to={getArticlePath(article)}>
+                    <div className="overflow-hidden rounded" style={{ aspectRatio: '4/3' }}>
+                      <ArticleImage
+                        article={article}
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    </div>
+                  </Link>
+                  {cleanText(article.category) && (
+                    <p className="font-medium text-xs text-[#DA291C] mt-2">{cleanText(article.category)}</p>
+                  )}
+                  <Link to={getArticlePath(article)}>
+                    <h4 className="font-bold text-sm text-[#333F48] mt-1 leading-snug line-clamp-2 group-hover:text-[#DA291C] transition-colors">
+                      {cleanText(article.title)}
+                    </h4>
+                  </Link>
+                  {formatDate(article.published_at || article.created_at) && (
+                    <p className="font-medium text-xs text-[#74869B] mt-1">{formatDate(article.published_at || article.created_at)}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </section>
   )
 }
-
-const BlogCard = ({ article, formatDate, isFeatured = false }) => (
-  <>
-    {/* Thumbnail */}
-    <Link to={`/blog/${article.slug}`} className="block overflow-hidden bg-slate-50">
-      <div className="relative aspect-video overflow-hidden">
-        <img
-          alt={article.title}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-          src={article.thumbnail}
-          loading="lazy"
-        />
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#4F46E5]/0 to-transparent group-hover:from-[#4F46E5]/10 transition-all duration-500" />
-
-        {/* Category badge on image */}
-        <div className="absolute top-4 left-4">
-          <span className="inline-flex items-center gap-1.5 bg-[#0F172A]/70 backdrop-blur-sm text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg uppercase tracking-wider">
-            {article.category || 'Tin tức'}
-          </span>
-        </div>
-      </div>
-    </Link>
-
-    {/* Content */}
-    <div className="p-6">
-      {/* Date */}
-      <div className="flex items-center gap-2 mb-4">
-        <span className="material-symbols-outlined text-[#4F46E5] text-sm">calendar_today</span>
-        <span className="text-[11px] text-slate-400 uppercase tracking-wider font-medium">
-          {formatDate(article.published_at || article.created_at)}
-        </span>
-      </div>
-
-      {/* Title */}
-      <Link to={`/blog/${article.slug}`}>
-        <h3 className={`font-display font-bold text-slate-900 mb-3 group-hover:text-[#4F46E5] transition-colors duration-200 leading-snug ${isFeatured ? 'text-xl' : 'text-lg'} line-clamp-2`}>
-          {article.title}
-        </h3>
-      </Link>
-
-      {/* Summary */}
-      <p className="text-slate-500 text-sm leading-relaxed line-clamp-3 mb-5">
-        {article.summary || article.content?.substring(0, 150)}
-      </p>
-
-      {/* Read more */}
-      <Link
-        to={`/blog/${article.slug}`}
-        className="inline-flex items-center gap-2 text-[#4F46E5] font-semibold text-sm group/btn hover:gap-3 transition-all duration-200"
-      >
-        Đọc tiếp
-        <span className="material-symbols-outlined text-base group-hover/btn:translate-x-1 transition-transform">east</span>
-      </Link>
-    </div>
-  </>
-)
 
 export default BlogSection

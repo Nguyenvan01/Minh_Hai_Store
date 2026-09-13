@@ -3,9 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import Newsletter from '../components/Newsletter'
+import ProductFilters from '../components/ProductFilters'
 import { productAPI } from '../services/api'
 import { formatPrice } from '../utils/formatPrice'
-import { useCart } from '../contexts/CartContext'
 import { useToast } from '../contexts/ToastContext'
 
 const StarRating = ({ rating = 0 }) => {
@@ -27,7 +27,6 @@ const StarRating = ({ rating = 0 }) => {
 }
 
 const SalePage = () => {
-  const { addItem } = useCart()
   const toast = useToast()
   const navigate = useNavigate()
   
@@ -36,25 +35,36 @@ const SalePage = () => {
   
   // Filters
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedSizes, setSelectedSizes] = useState([])
+  const [selectedColors, setSelectedColors] = useState([])
   const [priceRange, setPriceRange] = useState([0, 5000000])
+  const [selectedDiscounts, setSelectedDiscounts] = useState([])
   const [sortBy, setSortBy] = useState('discount')
   const [page, setPage] = useState(1)
-  
-  const productsPerPage = 6
-  
-  // Danh mục cố định
+
+  const productsPerPage = 8
+
+  // Danh mục cố định - slugs khớp với database
   const categories = [
     { id: 'all', name: 'Tất cả' },
-    { id: 'nam', name: 'Nam' },
-    { id: 'nu', name: 'Nữ' },
-    { id: 'tre-em', name: 'Trẻ em' }
+    { id: 'ao-thun', name: 'Áo Thun' },
+    { id: 'ao-so-mi', name: 'Áo Sơ Mi' },
+    { id: 'quan-jeans', name: 'Quần Jeans' },
+    { id: 'tshirt', name: 'T-Shirt' },
+    { id: 'vay', name: 'Váy' },
+    { id: 'homewear', name: 'Homewear' },
+    { id: 'ao-polo', name: 'Áo Polo' }
   ]
-  
-  // Slugs cho mỗi danh mục
+
+  // Slugs cho mỗi danh mục - khớp với database
   const categorySlugs = {
-    nam: ['ao-thun-nam', 'ao-so-mi-nam', 'ao-polo-nam', 'quan-jeans-nam', 'quan-tay-nam', 'quan-short-nam', 'ao-khoac-nam', 'set-do-nam'],
-    nu: ['ao-blouse-nu', 'ao-thun-nu', 'ao-croptop', 'chan-vay', 'dam-nu', 'quan-nu', 'ao-khoac-nu', 'set-do-nu'],
-    'tre-em': ['ao-tre-em', 'quan-tre-em', 'vay-tre-em', 'dam-tre-em', 'bo-do-tre-em']
+    'ao-thun': ['ao-thun'],
+    'ao-so-mi': ['ao-so-mi'],
+    'quan-jeans': ['quan-jeans', 'quan-short'],
+    'tshirt': ['tshirt'],
+    'vay': ['vay'],
+    'homewear': ['homewear'],
+    'ao-polo': ['ao-polo']
   }
 
   // Fetch sale products
@@ -85,13 +95,10 @@ const SalePage = () => {
   // Tính số lượng theo danh mục
   const categoryCounts = useMemo(() => {
     const counts = { all: allSaleProducts.length }
-    
     Object.keys(categorySlugs).forEach(catId => {
-      counts[catId] = allSaleProducts.filter(p => 
-        categorySlugs[catId].includes(p.category_slug)
-      ).length
+      const slugs = categorySlugs[catId] || []
+      counts[catId] = allSaleProducts.filter(p => slugs.includes(p.category_slug)).length
     })
-    
     return counts
   }, [allSaleProducts])
 
@@ -109,6 +116,41 @@ const SalePage = () => {
     result = result.filter(p => 
       p.price >= priceRange[0] && p.price <= priceRange[1]
     )
+
+    if (selectedDiscounts.length > 0) {
+      const minDiscount = Math.min(...selectedDiscounts.map(value => Number(value)).filter(Boolean))
+      result = result.filter(p => {
+        const discountPercent = p.compare_price && p.compare_price > p.price
+          ? Math.round((1 - p.price / p.compare_price) * 100)
+          : 0
+        return discountPercent >= minDiscount
+      })
+    }
+
+    if (selectedSizes.length > 0) {
+      result = result.filter(p => {
+        const sizes = [
+          ...(Array.isArray(p.sizes) ? p.sizes : []),
+          ...(Array.isArray(p.variants) ? p.variants.map(v => v.size_name || v.size || v.size_code) : []),
+          p.size,
+          p.size_name,
+        ].filter(Boolean).map(value => String(value).toLowerCase())
+        return sizes.length === 0 || selectedSizes.some(size => sizes.includes(String(size).toLowerCase()))
+      })
+    }
+
+    if (selectedColors.length > 0) {
+      result = result.filter(p => {
+        const colors = [
+          ...(Array.isArray(p.colors) ? p.colors.map(c => c.id ?? c.code ?? c.name ?? c) : []),
+          ...(Array.isArray(p.color_variants) ? p.color_variants.map(c => c.id ?? c.code ?? c.name ?? c) : []),
+          ...(Array.isArray(p.variants) ? p.variants.map(v => v.color_id ?? v.color_name ?? v.color) : []),
+          p.color,
+          p.color_name,
+        ].filter(Boolean).map(value => String(value).toLowerCase())
+        return colors.length === 0 || selectedColors.some(color => colors.includes(String(color).toLowerCase()))
+      })
+    }
     
     // Sort
     switch (sortBy) {
@@ -135,7 +177,7 @@ const SalePage = () => {
     }
     
     return result
-  }, [allSaleProducts, selectedCategory, priceRange, sortBy])
+  }, [allSaleProducts, selectedCategory, priceRange, selectedDiscounts, selectedSizes, selectedColors, sortBy])
 
   // Phân trang
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / productsPerPage))
@@ -147,7 +189,7 @@ const SalePage = () => {
   // Reset page khi filter thay đổi
   useEffect(() => {
     setPage(1)
-  }, [selectedCategory, priceRange, sortBy])
+  }, [selectedCategory, priceRange, selectedDiscounts, selectedSizes, selectedColors, sortBy])
 
   const handleSortChange = (e) => {
     setSortBy(e.target.value)
@@ -156,8 +198,8 @@ const SalePage = () => {
   const handleAddToCart = (e, product) => {
     e.preventDefault()
     e.stopPropagation()
-    addItem(product, 1, null, null)
-    toast.success(`Đã thêm "${product.name}" vào giỏ hàng!`)
+    toast.info('Vui lòng chọn size/màu trước khi thêm vào giỏ hàng.')
+    navigate(`/product/${product.slug}`)
   }
 
   const handleQuickView = (e, product) => {
@@ -170,9 +212,9 @@ const SalePage = () => {
     <div className="min-h-screen bg-background">
       <Header cartCount={0} />
       
-      <main className="pt-28 max-w-screen-2xl mx-auto px-12 pb-12">
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-6 pb-12">
         {/* Breadcrumbs & Header */}
-        <div className="mb-12">
+        <div className="mb-0">
           <nav className="flex items-center gap-2 text-on-surface-variant text-sm mb-4 uppercase tracking-widest font-label">
             <Link className="hover:text-primary transition-colors" to="/">Trang chủ</Link>
             <span className="material-symbols-outlined text-xs">chevron_right</span>
@@ -184,65 +226,21 @@ const SalePage = () => {
           </p>
         </div>
 
-        <div className="flex gap-16">
+        <div className="flex gap-20">
           {/* Sidebar Filter */}
-          <aside className="w-72 flex-shrink-0 hidden lg:block">
-            <div className="space-y-12 sticky top-32">
-              {/* Categories */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Danh mục</h3>
-                <ul className="space-y-1 text-on-surface-variant divide-y divide-outline-variant">
-                  {categories.map((cat) => (
-                    <li key={cat.id}>
-                      <button
-                        onClick={() => setSelectedCategory(cat.id)}
-                        className={`flex justify-between items-center w-full text-left py-2 px-3 -my-px transition-all ${
-                          selectedCategory === cat.id 
-                            ? 'text-primary font-medium bg-primary/10' 
-                            : 'hover:text-primary hover:bg-surface-container'
-                        }`}
-                      >
-                        <span>{cat.name}</span>
-                        <span className="text-xs opacity-50">{categoryCounts[cat.id] || 0}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Khoảng giá</h3>
-                <div className="px-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="5000000"
-                    step="100000"
-                    value={priceRange[1]}
-                    onChange={(e) => setPriceRange([0, Number(e.target.value)])}
-                    className="w-full h-1 bg-surface-container rounded-full appearance-none cursor-pointer accent-primary mb-4"
-                  />
-                  <div className="flex justify-between text-xs font-medium text-on-surface-variant font-label">
-                    <span>{formatPrice(0)}</span>
-                    <span>{formatPrice(priceRange[1])}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Reset Filter */}
-              <button
-                onClick={() => {
-                  setSelectedCategory('all')
-                  setPriceRange([0, 5000000])
-                  setSortBy('discount')
-                }}
-                className="w-full py-3 text-sm font-medium text-primary border border-primary hover:bg-primary hover:text-white transition-colors"
-              >
-                Đặt lại bộ lọc
-              </button>
-            </div>
-          </aside>
+          <ProductFilters
+            categoryList={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={(id) => { setSelectedCategory(id); setPage(1) }}
+            selectedSizes={selectedSizes}
+            onSizeChange={(sizes) => { setSelectedSizes(sizes); setPage(1) }}
+            selectedColors={selectedColors}
+            onColorChange={(colors) => { setSelectedColors(colors); setPage(1) }}
+            priceRange={priceRange}
+            onPriceChange={(range) => { setPriceRange(range); setPage(1) }}
+            selectedDiscounts={selectedDiscounts}
+            onDiscountChange={(discounts) => { setSelectedDiscounts(discounts); setPage(1) }}
+          />
 
           {/* Product Display Area */}
           <section className="flex-grow">
@@ -281,7 +279,7 @@ const SalePage = () => {
                 <p className="text-on-surface-variant text-lg">Không có sản phẩm nào phù hợp</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-y-16 gap-x-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-y-12 xl:gap-y-16 gap-x-6 xl:gap-x-8">
                 {currentProducts.map((product) => {
                   const discountPercent = product.compare_price && product.compare_price > product.price
                     ? Math.round((1 - product.price / product.compare_price) * 100)
@@ -318,7 +316,7 @@ const SalePage = () => {
                         <div className="product-action absolute inset-0 bg-black/40 opacity-0 flex flex-col justify-end p-6 transition-all duration-300 group-hover:opacity-100">
                           <button
                             onClick={(e) => handleAddToCart(e, product)}
-                            className="w-full bg-white text-on-surface py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#4F46E5] hover:text-white transition-colors mb-2"
+                            className="w-full bg-white text-on-surface py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#DA291C] hover:text-white transition-colors mb-2"
                           >
                             Thêm vào giỏ
                           </button>

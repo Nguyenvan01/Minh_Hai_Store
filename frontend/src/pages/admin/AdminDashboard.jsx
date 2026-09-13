@@ -1,25 +1,20 @@
 import { useState, useEffect } from 'react'
 import api from '../../services/api'
 import {
-  ShoppingCart,
+  ClipboardList,
   Package,
   Users,
+  Wallet,
   TrendingUp,
-  TrendingDown,
-  Eye,
-  DollarSign,
   Clock,
-  AlertTriangle,
+  Warehouse,
+  ArrowRight,
   ArrowUp,
   ArrowDown,
-  RefreshCw
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import {
-  LineChart,
   Line,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -31,11 +26,14 @@ import {
   Area
 } from 'recharts'
 
-const StatCard = ({ icon: Icon, label, value, change, changeType, color, sub }) => (
+const StatCard = ({ icon: Icon, label, value, change, changeType, sub }) => (
   <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
     <div className="flex items-start justify-between">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color}`}>
-        <Icon size={22} className="text-white" />
+      <div
+        className="w-11 h-11 rounded-lg flex items-center justify-center"
+        style={{ backgroundColor: '#fff1f2' }}
+      >
+        <Icon size={22} style={{ color: '#d71920' }} strokeWidth={1.8} />
       </div>
       {change && (
         <div className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
@@ -54,12 +52,46 @@ const StatCard = ({ icon: Icon, label, value, change, changeType, color, sub }) 
   </div>
 )
 
+const SectionTitle = ({ icon: Icon, title, action }) => (
+  <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+    <div className="flex items-center gap-3 min-w-0">
+      <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#fff1f2' }}>
+        <Icon size={19} style={{ color: '#d71920' }} strokeWidth={1.8} />
+      </div>
+      <h3 className="font-semibold text-gray-800 truncate">{title}</h3>
+    </div>
+    {action}
+  </div>
+)
+
+const QuickActionCard = ({ icon: Icon, title, value, description, to, actionLabel }) => (
+  <div className="group rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:border-red-100 hover:bg-[#fffdfd]">
+    <div className="flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-gray-700">{title}</p>
+        <p className="mt-2 text-2xl font-bold tracking-tight text-gray-900">{value}</p>
+        <p className="mt-1 text-sm text-gray-500">{description}</p>
+      </div>
+      <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-red-100 bg-[#fff1f2]">
+        <Icon size={22} style={{ color: '#d71920' }} strokeWidth={1.8} />
+      </div>
+    </div>
+    <Link
+      to={to}
+      className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#d71920] hover:text-[#b91c1c]"
+    >
+      {actionLabel}
+      <ArrowRight size={15} strokeWidth={1.8} />
+    </Link>
+  </div>
+)
+
 const OrderStatusBadge = ({ status }) => {
   const styles = {
     pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
-    confirmed: 'bg-blue-50 text-blue-700 border-blue-200',
+    confirmed: 'bg-red-50 text-red-700 border-red-200',
     processing: 'bg-purple-50 text-purple-700 border-purple-200',
-    shipped: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    shipped: 'bg-purple-50 text-purple-700 border-purple-200',
     delivered: 'bg-green-50 text-green-700 border-green-200',
     cancelled: 'bg-red-50 text-red-700 border-red-200',
     returned: 'bg-gray-50 text-gray-700 border-gray-200',
@@ -158,19 +190,17 @@ export default function AdminDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         <StatCard
-          icon={ShoppingCart}
+          icon={ClipboardList}
           label="Tổng đơn hàng"
           value={stats.totalOrders.toLocaleString()}
           change="+12%"
           changeType="up"
-          color="bg-gradient-to-br from-blue-500 to-blue-700"
         />
         <StatCard
           icon={Package}
           label="Sản phẩm"
           value={stats.totalProducts.toLocaleString()}
           sub={`${stats.lowStockProducts} sản phẩm sắp hết hàng`}
-          color="bg-gradient-to-br from-green-500 to-green-700"
         />
         <StatCard
           icon={Users}
@@ -178,15 +208,13 @@ export default function AdminDashboard() {
           value={stats.totalCustomers.toLocaleString()}
           change="+8%"
           changeType="up"
-          color="bg-gradient-to-br from-purple-500 to-purple-700"
         />
         <StatCard
-          icon={DollarSign}
+          icon={Wallet}
           label="Doanh thu tháng"
           value={formatPrice(stats.monthlyRevenue)}
           change={`${Math.abs(stats.revenueGrowth)}%`}
           changeType={stats.revenueGrowth >= 0 ? 'up' : 'down'}
-          color="bg-gradient-to-br from-orange-500 to-orange-700"
         />
       </div>
 
@@ -196,7 +224,7 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 bg-white rounded-xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-semibold text-gray-800">Doanh thu & Đơn hàng</h3>
-            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <select className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-100">
               <option>7 ngày qua</option>
               <option>30 ngày qua</option>
               <option>3 tháng</option>
@@ -207,8 +235,8 @@ export default function AdminDashboard() {
             <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#d71920" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#d71920" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
@@ -226,7 +254,7 @@ export default function AdminDashboard() {
                   name === 'revenue' ? 'Doanh thu' : 'Đơn hàng',
                 ]}
               />
-              <Area type="monotone" dataKey="revenue" stroke="#3B82F6" strokeWidth={2.5} fill="url(#colorRevenue)" />
+              <Area type="monotone" dataKey="revenue" stroke="#d71920" strokeWidth={2.5} fill="url(#colorRevenue)" />
               <Line type="monotone" dataKey="orders" stroke="#10B981" strokeWidth={2} dot={{ r: 3, fill: '#10B981' }} />
             </AreaChart>
           </ResponsiveContainer>
@@ -238,9 +266,9 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             {[
               { label: 'Chờ xác nhận', value: stats.pendingOrders || 0, color: 'bg-yellow-400' },
-              { label: 'Đã xác nhận', value: stats.confirmedOrders || 0, color: 'bg-blue-400' },
+              { label: 'Đã xác nhận', value: stats.confirmedOrders || 0, color: 'bg-red-400' },
               { label: 'Đang xử lý', value: stats.processingOrders || 0, color: 'bg-purple-400' },
-              { label: 'Đang giao', value: stats.shippedOrders || 0, color: 'bg-indigo-400' },
+              { label: 'Đang giao', value: stats.shippedOrders || 0, color: 'bg-purple-400' },
               { label: 'Đã giao', value: stats.deliveredOrders || 0, color: 'bg-green-400' },
               { label: 'Đã hủy', value: stats.cancelledOrders || 0, color: 'bg-red-400' },
             ].map((item) => {
@@ -272,12 +300,15 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Recent Orders */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-800">Đơn hàng gần đây</h3>
-            <Link to="/admin/orders" className="text-sm text-blue-600 hover:underline font-medium">
-              Xem tất cả
-            </Link>
-          </div>
+          <SectionTitle
+            icon={ClipboardList}
+            title="Đơn hàng gần đây"
+            action={(
+              <Link to="/admin/orders" className="text-sm text-[#d71920] hover:underline font-medium">
+                Xem tất cả
+              </Link>
+            )}
+          />
           <div className="divide-y divide-gray-50">
             {recentOrders.map((order) => (
               <div key={order.id} className="px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50/60 transition-colors cursor-pointer">
@@ -299,24 +330,30 @@ export default function AdminDashboard() {
 
         {/* Top Products */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-800">Sản phẩm bán chạy</h3>
-            <Link to="/admin/products" className="text-sm text-blue-600 hover:underline font-medium">
-              Xem tất cả
-            </Link>
-          </div>
+          <SectionTitle
+            icon={TrendingUp}
+            title="Sản phẩm bán chạy"
+            action={(
+              <Link to="/admin/products" className="text-sm text-[#d71920] hover:underline font-medium">
+                Xem tất cả
+              </Link>
+            )}
+          />
           <div className="divide-y divide-gray-50">
             {topProducts.map((product, idx) => (
               <div key={idx} className="px-5 py-3.5 flex items-center gap-4 hover:bg-gray-50/60 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-red-50 text-[#d71920] flex items-center justify-center text-sm font-semibold flex-shrink-0 border border-red-100">
                   {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{product.name}</p>
                   <div className="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden w-full max-w-[200px]">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
-                      style={{ width: `${(product.total_sold / topProducts[0].total_sold) * 100}%` }}
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${topProducts[0]?.total_sold > 0 ? (product.total_sold / topProducts[0].total_sold) * 100 : 0}%`,
+                        backgroundColor: '#d71920',
+                      }}
                     />
                   </div>
                 </div>
@@ -331,36 +368,30 @@ export default function AdminDashboard() {
 
       {/* Alerts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="text-yellow-500 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <p className="font-semibold text-yellow-800 text-sm">Cảnh báo tồn kho</p>
-            <p className="text-yellow-700 text-xs mt-0.5">{stats.lowStockProducts} sản phẩm sắp hết hàng</p>
-          </div>
-          <Link to="/admin/warehouse" className="ml-auto text-xs text-yellow-700 font-medium hover:underline whitespace-nowrap">
-            Xem ngay
-          </Link>
-        </div>
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
-          <Clock className="text-blue-500 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <p className="font-semibold text-blue-800 text-sm">Đơn hàng chờ xử lý</p>
-            <p className="text-blue-700 text-xs mt-0.5">{stats.pendingOrders} đơn hàng cần xác nhận</p>
-          </div>
-          <Link to="/admin/orders?status=pending" className="ml-auto text-xs text-blue-700 font-medium hover:underline whitespace-nowrap">
-            Xử lý ngay
-          </Link>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
-          <TrendingUp className="text-green-500 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <p className="font-semibold text-green-800 text-sm">Doanh thu tháng này</p>
-            <p className="text-green-700 text-xs mt-0.5">{formatPrice(stats.monthlyRevenue)}</p>
-          </div>
-          <Link to="/admin/reports" className="ml-auto text-xs text-green-700 font-medium hover:underline whitespace-nowrap">
-            Xem báo cáo
-          </Link>
-        </div>
+        <QuickActionCard
+          icon={Warehouse}
+          title="Sản phẩm sắp hết hàng"
+          value={`${stats.lowStockProducts} sản phẩm`}
+          description="Cần kiểm tra và bổ sung tồn kho kịp thời."
+          to="/admin/warehouse"
+          actionLabel="Xem kho hàng"
+        />
+        <QuickActionCard
+          icon={Clock}
+          title="Đơn hàng chờ xử lý"
+          value={`${stats.pendingOrders} đơn hàng`}
+          description="Các đơn cần xác nhận hoặc tiếp tục xử lý."
+          to="/admin/orders?status=pending"
+          actionLabel="Xử lý đơn hàng"
+        />
+        <QuickActionCard
+          icon={TrendingUp}
+          title="Doanh thu tháng này"
+          value={formatPrice(stats.monthlyRevenue)}
+          description="Theo dõi hiệu quả kinh doanh hiện tại."
+          to="/admin/reports"
+          actionLabel="Xem báo cáo"
+        />
       </div>
     </div>
   )

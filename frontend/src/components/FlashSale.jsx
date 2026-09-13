@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatPrice } from '../utils/formatPrice'
-import { useCart } from '../contexts/CartContext'
 
 const DEMO_END_TIME = (() => {
   const now = new Date()
@@ -12,7 +11,7 @@ const DEMO_END_TIME = (() => {
 })()
 
 const FlashSale = ({ flashSaleData, saleProductsData }) => {
-  const { addItem } = useCart()
+  const navigate = useNavigate()
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 })
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' })
   const [addingId, setAddingId] = useState(null)
@@ -110,8 +109,8 @@ const FlashSale = ({ flashSaleData, saleProductsData }) => {
 
     setAddingId(product.id)
     try {
-      addItem(product, 1, null, null)
-      showToast(`Đã thêm "${product.name}" vào giỏ hàng!`)
+      showToast('Vui lòng chọn size/màu trước khi thêm vào giỏ hàng.', 'success')
+      navigate(`/product/${product.slug}`)
     } catch {
       showToast('Không thể thêm vào giỏ hàng', 'error')
     } finally {

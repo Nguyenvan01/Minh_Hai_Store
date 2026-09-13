@@ -1,15 +1,16 @@
 const express = require('express')
 const router = express.Router()
 const customerController = require('../controllers/customerController')
-const { customerAuth } = require('../middleware/customerAuth')
+const { customerAuth, optionalAuth } = require('../middleware/customerAuth')
 
 router.post('/auth/register', customerController.register)
 router.post('/auth/login', customerController.login)
 router.get('/profile', customerAuth, customerController.getProfile)
 router.put('/profile', customerAuth, customerController.updateProfile)
+router.put('/profile/change-password', customerAuth, customerController.changePassword)
 
 // Orders
-router.post('/orders', customerAuth, customerController.createOrder)
+router.post('/orders', optionalAuth, customerController.createOrder)
 router.get('/orders', customerAuth, customerController.getOrders)
 router.get('/orders/:id', customerAuth, customerController.getOrderDetail)
 router.post('/orders/:id/cancel', customerAuth, customerController.cancelOrder)

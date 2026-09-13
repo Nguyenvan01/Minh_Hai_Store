@@ -21,7 +21,6 @@ import {
   ChevronRight,
   Menu
 } from 'lucide-react'
-import { useState } from 'react'
 
 const menuItems = [
   { path: '/admin', icon: LayoutDashboard, label: 'Tổng quan', badge: null },
@@ -53,30 +52,30 @@ export default function AdminSidebar({ collapsed, onToggle }) {
 
   return (
     <aside
-      className={`fixed top-0 left-0 h-screen bg-gray-900 text-white flex flex-col z-40 transition-all duration-300 ${
+      className={`fixed top-0 left-0 h-screen bg-white text-[#2f3840] border-r border-[#e5e7eb] flex flex-col z-40 transition-all duration-300 ${
         collapsed ? 'w-[72px]' : 'w-[260px]'
       }`}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-gray-700/50">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-[#e5e7eb] bg-white">
         {!collapsed && (
           <Link to="/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center font-bold text-sm">
+            <div className="w-8 h-8 bg-[#d71920] text-white rounded-lg flex items-center justify-center font-bold text-sm">
               C
             </div>
-            <span className="font-bold text-lg tracking-tight">CLOTH Admin</span>
+            <span className="font-bold text-lg tracking-tight text-[#2f3840]">Minh Hải Admin</span>
           </Link>
         )}
         <button
           onClick={onToggle}
-          className="p-1.5 rounded-lg hover:bg-gray-700/50 transition-colors text-gray-400 hover:text-white"
+          className="p-1.5 rounded-lg transition-colors text-gray-500 hover:bg-[#fff1f2] hover:text-[#d71920]"
         >
           {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
       {/* Menu */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const Icon = item.icon
           const active = isActive(item.path)
@@ -86,14 +85,11 @@ export default function AdminSidebar({ collapsed, onToggle }) {
               to={item.path}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group relative ${
                 active
-                  ? 'bg-blue-600/20 text-blue-400'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-[#d71920] text-white shadow-sm'
+                  : 'text-gray-700 hover:bg-[#fff1f2] hover:text-[#d71920]'
               }`}
             >
-              {active && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 bg-blue-500 rounded-r" />
-              )}
-              <Icon size={20} className={active ? 'text-blue-400' : 'text-gray-500 group-hover:text-gray-300'} />
+              <Icon size={20} className={active ? 'text-white' : 'text-gray-500 group-hover:text-[#d71920]'} />
               {!collapsed && (
                 <>
                   <span className="text-sm font-medium flex-1">{item.label}</span>
@@ -110,23 +106,23 @@ export default function AdminSidebar({ collapsed, onToggle }) {
       </nav>
 
       {/* User */}
-      <div className="border-t border-gray-700/50 p-3 space-y-2">
+      <div className="border-t border-[#e5e7eb] p-3 space-y-2 bg-white">
         {!collapsed && admin && (
-          <div className="px-2 py-1.5 rounded-lg bg-gray-800/50">
-            <p className="text-sm font-semibold truncate">{admin.name}</p>
+          <div className="px-2 py-1.5 rounded-lg bg-gray-50 border border-gray-100">
+            <p className="text-sm font-semibold truncate text-[#2f3840]">{admin.name}</p>
             <p className="text-xs text-gray-500 truncate">{admin.role}</p>
           </div>
         )}
         <Link
           to="/"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-[#fff1f2] hover:text-[#d71920] transition-colors"
         >
           <Menu size={20} />
           {!collapsed && <span className="text-sm">Xem cửa hàng</span>}
         </Link>
         <button
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-red-900/20 hover:text-red-400 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-[#fff1f2] hover:text-[#d71920] transition-colors"
         >
           <LogOut size={20} />
           {!collapsed && <span className="text-sm">Đăng xuất</span>}

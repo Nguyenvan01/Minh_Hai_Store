@@ -1,53 +1,9 @@
 -- =====================================================
 -- CLOTHING STORE - Database Schema
--- E-commerce Platform for Fashion & Clothing
--- Complete Store Management System
 -- =====================================================
 
--- Create Database
-CREATE DATABASE IF NOT EXISTS clothing_store
-CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS clothing_store CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE clothing_store;
-
--- =====================================================
--- TABLE: warehouses
--- =====================================================
-CREATE TABLE IF NOT EXISTS warehouses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    address TEXT NOT NULL,
-    phone VARCHAR(20) DEFAULT NULL,
-    is_main BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_warehouses_code (code),
-    INDEX idx_warehouses_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: suppliers
--- =====================================================
-CREATE TABLE IF NOT EXISTS suppliers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(200) NOT NULL,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    email VARCHAR(255) DEFAULT NULL,
-    phone VARCHAR(20) DEFAULT NULL,
-    address TEXT DEFAULT NULL,
-    tax_code VARCHAR(50) DEFAULT NULL,
-    contact_person VARCHAR(100) DEFAULT NULL,
-    bank_account VARCHAR(50) DEFAULT NULL,
-    bank_name VARCHAR(100) DEFAULT NULL,
-    debt_limit DECIMAL(15, 2) DEFAULT 0.00,
-    total_debt DECIMAL(15, 2) DEFAULT 0.00,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_suppliers_code (code),
-    INDEX idx_suppliers_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
 -- TABLE: users
@@ -58,57 +14,17 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     phone VARCHAR(20) DEFAULT NULL,
-    address TEXT DEFAULT NULL,
     avatar VARCHAR(500) DEFAULT NULL,
-    role ENUM('user', 'admin', 'manager', 'staff') DEFAULT 'user',
+    role ENUM('user', 'admin', 'manager', 'staff', 'warehouse') DEFAULT 'user',
     gender ENUM('male', 'female', 'other') DEFAULT NULL,
     birth_date DATE DEFAULT NULL,
-    member_level VARCHAR(20) DEFAULT 'Bronze',
-    id_card VARCHAR(20) DEFAULT NULL,
-    default_city VARCHAR(100) DEFAULT NULL,
-    default_district VARCHAR(100) DEFAULT NULL,
-    default_ward VARCHAR(100) DEFAULT NULL,
-    default_address TEXT DEFAULT NULL,
     reward_points INT DEFAULT 0,
-    total_spent DECIMAL(15, 2) DEFAULT 0.00,
-    order_count INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     email_verified_at TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_users_email (email),
-    INDEX idx_users_role (role),
-    INDEX idx_users_phone (phone)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: employees
--- =====================================================
-CREATE TABLE IF NOT EXISTS employees (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT DEFAULT NULL,
-    employee_code VARCHAR(50) NOT NULL UNIQUE,
-    first_name VARCHAR(50) NOT NULL,
-    last_name VARCHAR(50) NOT NULL,
-    full_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) DEFAULT NULL,
-    id_card VARCHAR(20) DEFAULT NULL,
-    birth_date DATE DEFAULT NULL,
-    gender ENUM('male', 'female', 'other') DEFAULT NULL,
-    address TEXT DEFAULT NULL,
-    position VARCHAR(100) DEFAULT NULL,
-    department VARCHAR(100) DEFAULT NULL,
-    hire_date DATE DEFAULT NULL,
-    salary DECIMAL(12, 2) DEFAULT NULL,
-    commission_rate DECIMAL(5, 2) DEFAULT 0.00,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_employees_code (employee_code),
-    INDEX idx_employees_user (user_id),
-    INDEX idx_employees_active (is_active),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    INDEX idx_users_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -126,8 +42,8 @@ CREATE TABLE IF NOT EXISTS addresses (
     is_default TINYINT(1) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_user_default (user_id, is_default),
-    INDEX idx_user (user_id)
+    INDEX idx_user_address (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -149,6 +65,7 @@ CREATE TABLE IF NOT EXISTS categories (
     INDEX idx_categories_slug (slug),
     INDEX idx_categories_parent (parent_id),
     INDEX idx_categories_sort (sort_order),
+    INDEX idx_categories_featured (is_featured, is_active),
     FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -161,8 +78,6 @@ CREATE TABLE IF NOT EXISTS brands (
     slug VARCHAR(100) NOT NULL UNIQUE,
     logo VARCHAR(500) DEFAULT NULL,
     description TEXT DEFAULT NULL,
-    website VARCHAR(255) DEFAULT NULL,
-    country VARCHAR(100) DEFAULT NULL,
     is_featured BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -178,12 +93,10 @@ CREATE TABLE IF NOT EXISTS sizes (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(20) NOT NULL UNIQUE,
     code VARCHAR(10) DEFAULT NULL,
-    group_name VARCHAR(50) DEFAULT NULL,
     sort_order INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_sizes_sort (sort_order),
-    INDEX idx_sizes_group (group_name)
+    INDEX idx_sizes_sort (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -191,7 +104,7 @@ CREATE TABLE IF NOT EXISTS sizes (
 -- =====================================================
 CREATE TABLE IF NOT EXISTS colors (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(50) NOT NULL,
+    name VARCHAR(50) NOT NULL UNIQUE,
     code VARCHAR(20) DEFAULT NULL,
     hex_code VARCHAR(7) DEFAULT NULL,
     sort_order INT DEFAULT 0,
@@ -202,7 +115,6 @@ CREATE TABLE IF NOT EXISTS colors (
 
 -- =====================================================
 -- TABLE: products
--- NOTE: image is stored in product_images table, NOT in products.image_url
 -- =====================================================
 CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -214,21 +126,16 @@ CREATE TABLE IF NOT EXISTS products (
     compare_price DECIMAL(12, 2) DEFAULT NULL,
     cost_price DECIMAL(12, 2) DEFAULT NULL,
     sku VARCHAR(100) UNIQUE,
-    barcode VARCHAR(100) DEFAULT NULL,
     stock INT DEFAULT 0,
-    low_stock_threshold INT DEFAULT 5,
+    total_sold INT DEFAULT 0,
+    view_count INT DEFAULT 0,
     category_id INT DEFAULT NULL,
     brand_id INT DEFAULT NULL,
     gender ENUM('male', 'female', 'unisex', 'kids_boy', 'kids_girl') DEFAULT 'unisex',
-    age_group ENUM('adult', 'teen', 'kids', 'all') DEFAULT 'adult',
     material VARCHAR(100) DEFAULT NULL,
-    pattern VARCHAR(100) DEFAULT NULL,
-    season VARCHAR(50) DEFAULT NULL,
-    origin VARCHAR(100) DEFAULT NULL,
-    total_sold INT DEFAULT 0,
-    total_revenue DECIMAL(15, 2) DEFAULT 0.00,
-    view_count INT DEFAULT 0,
+    is_online_exclusive BOOLEAN DEFAULT FALSE,
     is_featured BOOLEAN DEFAULT FALSE,
+    is_best_seller BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     seo_title VARCHAR(255) DEFAULT NULL,
     seo_description TEXT DEFAULT NULL,
@@ -241,9 +148,10 @@ CREATE TABLE IF NOT EXISTS products (
     INDEX idx_products_sku (sku),
     INDEX idx_products_gender (gender),
     INDEX idx_products_featured (is_featured),
+    INDEX idx_products_bestseller (is_best_seller),
     INDEX idx_products_active (is_active),
     INDEX idx_products_price (price),
-    INDEX idx_products_total_sold (total_sold),
+    INDEX idx_products_sold (total_sold),
     FULLTEXT idx_products_search (name, short_description, description),
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
     FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
@@ -251,7 +159,6 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- =====================================================
 -- TABLE: product_images
--- NOTE: All product images are stored here, NOT in products.image_url
 -- =====================================================
 CREATE TABLE IF NOT EXISTS product_images (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -260,7 +167,7 @@ CREATE TABLE IF NOT EXISTS product_images (
     alt_text VARCHAR(255) DEFAULT NULL,
     sort_order INT DEFAULT 0,
     is_primary BOOLEAN DEFAULT FALSE,
-    is_thumbnail BOOLEAN DEFAULT FALSE,
+    is_online_exclusive BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_images_product (product_id),
     INDEX idx_images_sort (product_id, sort_order),
@@ -276,12 +183,8 @@ CREATE TABLE IF NOT EXISTS product_variants (
     size_id INT DEFAULT NULL,
     color_id INT DEFAULT NULL,
     sku VARCHAR(100) UNIQUE,
-    barcode VARCHAR(100) DEFAULT NULL,
-    price_modifier DECIMAL(12, 2) DEFAULT 0.00,
     price DECIMAL(12, 2) DEFAULT NULL,
-    cost_price DECIMAL(12, 2) DEFAULT NULL,
     stock INT DEFAULT 0,
-    reserved_stock INT DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -295,143 +198,223 @@ CREATE TABLE IF NOT EXISTS product_variants (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: orders
+-- TABLE: suppliers
 -- =====================================================
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE IF NOT EXISTS suppliers (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    order_number VARCHAR(50) NOT NULL UNIQUE,
-    user_id INT DEFAULT NULL,
-    invoice_number VARCHAR(50) DEFAULT NULL,
-    tax_code VARCHAR(50) DEFAULT NULL,
-    company_name VARCHAR(255) DEFAULT NULL,
-    company_address TEXT DEFAULT NULL,
-    status ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned') DEFAULT 'pending',
-    customer_name VARCHAR(100) NOT NULL,
-    customer_email VARCHAR(255) NOT NULL,
-    customer_phone VARCHAR(20) NOT NULL,
-    customer_id_card VARCHAR(20) DEFAULT NULL,
-    shipping_full_address TEXT NOT NULL,
-    shipping_city VARCHAR(100) DEFAULT NULL,
-    shipping_district VARCHAR(100) DEFAULT NULL,
-    shipping_ward VARCHAR(100) DEFAULT NULL,
-    shipping_address TEXT NOT NULL,
-    shipping_note TEXT DEFAULT NULL,
-    subtotal DECIMAL(12, 2) NOT NULL,
-    shipping_fee DECIMAL(12, 2) DEFAULT 0.00,
-    discount_amount DECIMAL(12, 2) DEFAULT 0.00,
-    discount_code VARCHAR(50) DEFAULT NULL,
-    discount_description VARCHAR(255) DEFAULT NULL,
-    points_discount DECIMAL(12, 2) DEFAULT 0.00,
-    tax_amount DECIMAL(12, 2) DEFAULT 0.00,
-    total_price DECIMAL(12, 2) NOT NULL,
-    payment_method ENUM('cod', 'bank_transfer', 'vnpay', 'momo', 'zalopay', 'cash', 'credit_card') DEFAULT 'cod',
-    payment_status ENUM('unpaid', 'paid', 'partially_paid', 'refunded', 'failed') DEFAULT 'unpaid',
-    payment_id VARCHAR(255) DEFAULT NULL,
-    paid_amount DECIMAL(12, 2) DEFAULT 0.00,
-    paid_at TIMESTAMP DEFAULT NULL,
-    shipping_method VARCHAR(100) DEFAULT NULL,
-    tracking_number VARCHAR(100) DEFAULT NULL,
-    shipped_at TIMESTAMP DEFAULT NULL,
-    delivered_at TIMESTAMP DEFAULT NULL,
-    assigned_employee_id INT DEFAULT NULL,
-    customer_note TEXT DEFAULT NULL,
-    admin_note TEXT DEFAULT NULL,
-    internal_note TEXT DEFAULT NULL,
-    points_earned INT DEFAULT 0,
-    points_used INT DEFAULT 0,
-    refund_amount DECIMAL(12, 2) DEFAULT 0.00,
-    refund_reason TEXT DEFAULT NULL,
-    refunded_at TIMESTAMP DEFAULT NULL,
-    confirmed_at TIMESTAMP DEFAULT NULL,
-    cancelled_at TIMESTAMP DEFAULT NULL,
-    cancel_reason VARCHAR(500) DEFAULT NULL,
-    cancel_by INT DEFAULT NULL,
-    recipient_name VARCHAR(100) DEFAULT NULL,
-    recipient_phone VARCHAR(20) DEFAULT NULL,
-    ward VARCHAR(100) DEFAULT NULL,
-    district VARCHAR(100) DEFAULT NULL,
-    city VARCHAR(100) DEFAULT NULL,
-    note TEXT DEFAULT NULL,
-    coupon_code VARCHAR(50) DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_orders_number (order_number),
-    INDEX idx_orders_user (user_id),
-    INDEX idx_orders_status (status),
-    INDEX idx_orders_payment_status (payment_status),
-    INDEX idx_orders_created (created_at),
-    INDEX idx_orders_assigned (assigned_employee_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (assigned_employee_id) REFERENCES employees(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: product_reviews
--- =====================================================
-CREATE TABLE IF NOT EXISTS product_reviews (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    product_id INT NOT NULL,
-    user_id INT NOT NULL,
-    order_id INT DEFAULT NULL,
-    rating TINYINT NOT NULL,
-    title VARCHAR(255) DEFAULT NULL,
-    content TEXT DEFAULT NULL,
-    pros TEXT DEFAULT NULL,
-    cons TEXT DEFAULT NULL,
-    size_rating ENUM('too_small', 'small', 'fit', 'large', 'too_large') DEFAULT 'fit',
-    images JSON DEFAULT NULL,
-    is_verified_purchase BOOLEAN DEFAULT FALSE,
-    is_approved BOOLEAN DEFAULT FALSE,
-    admin_reply TEXT DEFAULT NULL,
-    replied_at TIMESTAMP DEFAULT NULL,
-    helpful_count INT DEFAULT 0,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    phone VARCHAR(30) DEFAULT NULL,
+    email VARCHAR(150) DEFAULT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    contact_person VARCHAR(100) DEFAULT NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_reviews_product (product_id),
-    INDEX idx_reviews_user (user_id),
-    INDEX idx_reviews_rating (rating),
-    INDEX idx_reviews_approved (is_approved),
-    INDEX idx_reviews_active (is_active),
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
+    INDEX idx_suppliers_active (is_active),
+    INDEX idx_suppliers_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: order_items
+-- TABLE: warehouses
 -- =====================================================
-CREATE TABLE IF NOT EXISTS order_items (
+CREATE TABLE IF NOT EXISTS warehouses (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT NOT NULL,
-    product_id INT DEFAULT NULL,
-    variant_id INT DEFAULT NULL,
-    supplier_id INT DEFAULT NULL,
-    product_name VARCHAR(255) NOT NULL,
-    product_sku VARCHAR(100) DEFAULT NULL,
-    product_image VARCHAR(500) DEFAULT NULL,
-    variant_name VARCHAR(100) DEFAULT NULL,
-    size_name VARCHAR(20) DEFAULT NULL,
-    color_name VARCHAR(50) DEFAULT NULL,
-    unit_price DECIMAL(12, 2) NOT NULL,
-    cost_price DECIMAL(12, 2) DEFAULT NULL,
-    quantity INT NOT NULL DEFAULT 1,
-    discount_amount DECIMAL(12, 2) DEFAULT 0.00,
-    tax_amount DECIMAL(12, 2) DEFAULT 0.00,
-    total_price DECIMAL(12, 2) NOT NULL,
-    quantity_ordered INT DEFAULT 1,
-    quantity_shipped INT DEFAULT 0,
-    quantity_delivered INT DEFAULT 0,
-    refund_quantity INT DEFAULT 0,
-    refund_amount DECIMAL(12, 2) DEFAULT 0.00,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(150) NOT NULL,
+    address VARCHAR(255) DEFAULT NULL,
+    is_main BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_order_items_order (order_id),
-    INDEX idx_order_items_product (product_id),
-    INDEX idx_order_items_variant (variant_id),
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL,
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_warehouses_active (is_active),
+    INDEX idx_warehouses_main (is_main)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: import_orders
+-- =====================================================
+CREATE TABLE IF NOT EXISTS import_orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    supplier_id INT NOT NULL,
+    warehouse_id INT NOT NULL,
+    order_date DATE NOT NULL,
+    expected_date DATE DEFAULT NULL,
+    total_quantity INT DEFAULT 0,
+    subtotal DECIMAL(12, 2) DEFAULT 0.00,
+    discount_amount DECIMAL(12, 2) DEFAULT 0.00,
+    shipping_fee DECIMAL(12, 2) DEFAULT 0.00,
+    total_amount DECIMAL(12, 2) DEFAULT 0.00,
+    paid_amount DECIMAL(12, 2) DEFAULT 0.00,
+    payment_status ENUM('unpaid', 'partial', 'paid') DEFAULT 'unpaid',
+    payment_method ENUM('cash', 'bank_transfer') DEFAULT 'cash',
+    status ENUM('draft', 'processing', 'partial_received', 'received', 'cancelled') DEFAULT 'processing',
+    note TEXT DEFAULT NULL,
+    created_by INT DEFAULT NULL,
+    received_at TIMESTAMP DEFAULT NULL,
+    cancelled_at TIMESTAMP DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_import_orders_code (code),
+    INDEX idx_import_orders_status (status),
+    INDEX idx_import_orders_supplier (supplier_id),
+    INDEX idx_import_orders_dates (order_date, expected_date),
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id),
+    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id),
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: import_order_items
+-- =====================================================
+CREATE TABLE IF NOT EXISTS import_order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    import_order_id INT NOT NULL,
+    product_id INT NOT NULL,
+    variant_id INT DEFAULT NULL,
+    sku VARCHAR(100) DEFAULT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    variant_name VARCHAR(150) DEFAULT NULL,
+    quantity_ordered INT NOT NULL,
+    quantity_received INT DEFAULT 0,
+    unit_cost DECIMAL(12, 2) DEFAULT 0.00,
+    total_cost DECIMAL(12, 2) DEFAULT 0.00,
+    note TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_import_items_order (import_order_id),
+    INDEX idx_import_items_product (product_id),
+    INDEX idx_import_items_variant (variant_id),
+    FOREIGN KEY (import_order_id) REFERENCES import_orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: inventory_transactions
+-- =====================================================
+CREATE TABLE IF NOT EXISTS inventory_transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    variant_id INT DEFAULT NULL,
+    type ENUM('import', 'export', 'adjustment', 'sale', 'return') NOT NULL,
+    quantity INT NOT NULL,
+    before_stock INT NOT NULL DEFAULT 0,
+    after_stock INT NOT NULL DEFAULT 0,
+    reference_type VARCHAR(50) DEFAULT NULL,
+    reference_id INT DEFAULT NULL,
+    note TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_inventory_product (product_id),
+    INDEX idx_inventory_variant (variant_id),
+    INDEX idx_inventory_reference (reference_type, reference_id),
+    INDEX idx_inventory_type (type),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: best_sellers
+-- =====================================================
+CREATE TABLE IF NOT EXISTS best_sellers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_best_seller (product_id),
+    INDEX idx_bestsellers_sort (sort_order),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: collections
+-- =====================================================
+CREATE TABLE IF NOT EXISTS collections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    slug VARCHAR(200) NOT NULL UNIQUE,
+    description TEXT DEFAULT NULL,
+    image VARCHAR(500) DEFAULT NULL,
+    cta VARCHAR(255) DEFAULT NULL,
+    cta_text VARCHAR(100) DEFAULT 'Khám phá',
+    sort_order INT DEFAULT 0,
+    is_featured BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_collections_slug (slug),
+    INDEX idx_collections_sort (sort_order),
+    INDEX idx_collections_featured (is_featured, is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: banners
+-- =====================================================
+CREATE TABLE IF NOT EXISTS banners (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) DEFAULT NULL,
+    slug VARCHAR(200) DEFAULT NULL,
+    image VARCHAR(500) NOT NULL,
+    link_url VARCHAR(500) DEFAULT NULL,
+    description TEXT DEFAULT NULL,
+    sort_order INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valid_until TIMESTAMP DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_banners_sort (sort_order),
+    INDEX idx_banners_active (is_active, valid_from, valid_until)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: promotions
+-- =====================================================
+CREATE TABLE IF NOT EXISTS promotions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    slug VARCHAR(200) DEFAULT NULL,
+    description TEXT DEFAULT NULL,
+    image_url VARCHAR(500) DEFAULT NULL,
+    discount_type ENUM('percentage', 'fixed_amount') NOT NULL DEFAULT 'percentage',
+    discount_value DECIMAL(12, 2) NOT NULL,
+    start_date DATETIME NOT NULL,
+    end_date DATETIME NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    is_featured BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_promotions_slug (slug),
+    INDEX idx_promotions_active_dates (is_active, start_date, end_date),
+    INDEX idx_promotions_featured (is_featured)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: vouchers
+-- =====================================================
+CREATE TABLE IF NOT EXISTS vouchers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(100) DEFAULT NULL,
+    description VARCHAR(255) DEFAULT NULL,
+    discount_type ENUM('percentage', 'fixed_amount') NOT NULL,
+    discount_value DECIMAL(12, 2) NOT NULL,
+    min_order_amount DECIMAL(12, 2) DEFAULT 0.00,
+    max_usage_total INT DEFAULT NULL,
+    max_usage_per_user INT DEFAULT 1,
+    applicable_products JSON DEFAULT NULL,
+    applicable_categories JSON DEFAULT NULL,
+    valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    valid_until TIMESTAMP DEFAULT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    is_public BOOLEAN DEFAULT TRUE,
+    used_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_vouchers_code (code),
+    INDEX idx_vouchers_active (is_active, valid_from, valid_until)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -450,8 +433,6 @@ CREATE TABLE IF NOT EXISTS cart_items (
     INDEX idx_cart_session (session_id),
     INDEX idx_cart_user (user_id),
     INDEX idx_cart_product (product_id),
-    INDEX idx_cart_variant (variant_id),
-    UNIQUE KEY unique_cart_item (user_id, product_id, variant_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
     FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL
@@ -465,224 +446,115 @@ CREATE TABLE IF NOT EXISTS wishlists (
     user_id INT NOT NULL,
     product_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_wishlist_user (user_id),
-    INDEX idx_wishlist_product (product_id),
-    UNIQUE KEY unique_wishlist_item (user_id, product_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: coupons
--- =====================================================
-CREATE TABLE IF NOT EXISTS coupons (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    name VARCHAR(100) DEFAULT NULL,
-    description VARCHAR(255) DEFAULT NULL,
-    coupon_type ENUM('general', 'first_order', 'specific_product', 'specific_category', 'shipping', 'points') DEFAULT 'general',
-    discount_type ENUM('percentage', 'fixed_amount', 'percentage_product', 'fixed_product') NOT NULL,
-    discount_value DECIMAL(12, 2) NOT NULL,
-    max_discount_amount DECIMAL(12, 2) DEFAULT NULL,
-    min_order_amount DECIMAL(12, 2) DEFAULT 0.00,
-    min_quantity INT DEFAULT NULL,
-    max_usage_total INT DEFAULT NULL,
-    max_usage_per_user INT DEFAULT 1,
-    max_usage_per_day INT DEFAULT NULL,
-    applicable_products JSON DEFAULT NULL,
-    applicable_categories JSON DEFAULT NULL,
-    applicable_users JSON DEFAULT NULL,
-    exclude_products JSON DEFAULT NULL,
-    points_required INT DEFAULT NULL,
-    valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    valid_until TIMESTAMP DEFAULT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    is_public BOOLEAN DEFAULT TRUE,
-    is_single_use BOOLEAN DEFAULT FALSE,
-    used_count INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_coupons_code (code),
-    INDEX idx_coupons_valid (valid_from, valid_until),
-    INDEX idx_coupons_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: coupon_usage
--- =====================================================
-CREATE TABLE IF NOT EXISTS coupon_usage (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    coupon_id INT NOT NULL,
-    user_id INT NOT NULL,
-    order_id INT NOT NULL,
-    discount_amount DECIMAL(12, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_coupon_usage_user (user_id),
-    INDEX idx_coupon_usage_coupon (coupon_id),
-    INDEX idx_coupon_usage_order (order_id),
-    UNIQUE KEY unique_coupon_order (coupon_id, order_id),
-    FOREIGN KEY (coupon_id) REFERENCES coupons(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_wishlist_item (user_id, product_id),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: promotions
+-- TABLE: orders
 -- =====================================================
-CREATE TABLE IF NOT EXISTS promotions (
+CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(200) NOT NULL,
-    slug VARCHAR(200) NOT NULL UNIQUE,
-    description TEXT DEFAULT NULL,
-    banner VARCHAR(500) DEFAULT NULL,
-    banner_url VARCHAR(500) DEFAULT NULL,
-    promotion_type ENUM('flash_sale', 'buy_x_get_y', 'bundle', 'tier_discount', 'free_shipping', 'gift', 'points_boost') DEFAULT 'flash_sale',
-    discount_type ENUM('percentage', 'fixed_amount', 'price') DEFAULT 'percentage',
-    discount_value DECIMAL(12, 2) DEFAULT NULL,
-    max_discount_amount DECIMAL(12, 2) DEFAULT NULL,
-    buy_quantity INT DEFAULT NULL,
-    get_quantity INT DEFAULT NULL,
-    get_product_id INT DEFAULT NULL,
-    get_discount_percent DECIMAL(5, 2) DEFAULT 100.00,
-    bundle_product_ids JSON DEFAULT NULL,
-    bundle_price DECIMAL(12, 2) DEFAULT NULL,
-    tier_rules JSON DEFAULT NULL,
-    min_order_amount DECIMAL(12, 2) DEFAULT 0.00,
-    applicable_products JSON DEFAULT NULL,
-    applicable_categories JSON DEFAULT NULL,
-    valid_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    valid_until TIMESTAMP DEFAULT NULL,
-    usage_limit INT DEFAULT NULL,
-    used_count INT DEFAULT 0,
-    max_per_user INT DEFAULT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    is_featured BOOLEAN DEFAULT FALSE,
-    priority INT DEFAULT 0,
+    order_number VARCHAR(50) NOT NULL UNIQUE,
+    user_id INT DEFAULT NULL,
+    status ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned') DEFAULT 'pending',
+    customer_name VARCHAR(100) NOT NULL,
+    customer_email VARCHAR(255) NOT NULL,
+    customer_phone VARCHAR(20) NOT NULL,
+    shipping_address TEXT NOT NULL,
+    shipping_city VARCHAR(100) DEFAULT NULL,
+    shipping_district VARCHAR(100) DEFAULT NULL,
+    shipping_ward VARCHAR(100) DEFAULT NULL,
+    address_detail TEXT DEFAULT NULL,
+    shipping_city_name VARCHAR(100) DEFAULT NULL,
+    shipping_district_name VARCHAR(100) DEFAULT NULL,
+    shipping_ward_name VARCHAR(100) DEFAULT NULL,
+    shipping_method VARCHAR(50) DEFAULT 'standard',
+    shipping_note TEXT DEFAULT NULL,
+    subtotal DECIMAL(12, 2) NOT NULL,
+    shipping_fee DECIMAL(12, 2) DEFAULT 0.00,
+    discount_amount DECIMAL(12, 2) DEFAULT 0.00,
+    discount_code VARCHAR(50) DEFAULT NULL,
+    total_price DECIMAL(12, 2) NOT NULL,
+    payment_method ENUM('cod', 'bank_transfer', 'vnpay', 'momo', 'zalopay', 'cash') DEFAULT 'cod',
+    payment_status ENUM('unpaid', 'paid', 'partially_paid', 'refunded') DEFAULT 'unpaid',
+    payment_id VARCHAR(255) DEFAULT NULL,
+    paid_at TIMESTAMP DEFAULT NULL,
+    tracking_number VARCHAR(100) DEFAULT NULL,
+    shipped_at TIMESTAMP DEFAULT NULL,
+    delivered_at TIMESTAMP DEFAULT NULL,
+    points_discount DECIMAL(12, 2) DEFAULT 0.00,
+    points_earned INT DEFAULT 0,
+    refund_amount DECIMAL(12, 2) DEFAULT 0.00,
+    refunded_at TIMESTAMP DEFAULT NULL,
+    confirmed_at TIMESTAMP DEFAULT NULL,
+    cancelled_at TIMESTAMP DEFAULT NULL,
+    cancel_reason VARCHAR(500) DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_promotions_slug (slug),
-    INDEX idx_promotions_type (promotion_type),
-    INDEX idx_promotions_valid (valid_from, valid_until),
-    INDEX idx_promotions_active (is_active),
-    FOREIGN KEY (get_product_id) REFERENCES products(id) ON DELETE SET NULL
+    INDEX idx_orders_number (order_number),
+    INDEX idx_orders_user (user_id),
+    INDEX idx_orders_status (status),
+    INDEX idx_orders_payment (payment_status),
+    INDEX idx_orders_created (created_at),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: reward_points
+-- TABLE: order_items
 -- =====================================================
-CREATE TABLE IF NOT EXISTS reward_points (
+CREATE TABLE IF NOT EXISTS order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    points INT NOT NULL,
-    points_type ENUM('earn', 'redeem', 'expire', 'refund', 'bonus', 'adjustment') NOT NULL,
-    balance_after DECIMAL(10, 2) DEFAULT NULL,
-    description VARCHAR(255) DEFAULT NULL,
-    order_id INT DEFAULT NULL,
-    reference_id INT DEFAULT NULL,
-    expires_at TIMESTAMP DEFAULT NULL,
-    is_used BOOLEAN DEFAULT FALSE,
-    used_at TIMESTAMP DEFAULT NULL,
+    order_id INT NOT NULL,
+    product_id INT DEFAULT NULL,
+    variant_id INT DEFAULT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    product_sku VARCHAR(100) DEFAULT NULL,
+    product_image VARCHAR(500) DEFAULT NULL,
+    size_name VARCHAR(20) DEFAULT NULL,
+    color_name VARCHAR(50) DEFAULT NULL,
+    unit_price DECIMAL(12, 2) NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    total_price DECIMAL(12, 2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_points_user (user_id),
-    INDEX idx_points_type (points_type),
-    INDEX idx_points_order (order_id),
-    INDEX idx_points_expires (expires_at),
+    INDEX idx_order_items_order (order_id),
+    INDEX idx_order_items_product (product_id),
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: product_reviews
+-- =====================================================
+CREATE TABLE IF NOT EXISTS product_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    user_id INT NOT NULL,
+    order_id INT DEFAULT NULL,
+    rating TINYINT NOT NULL,
+    title VARCHAR(255) DEFAULT NULL,
+    content TEXT DEFAULT NULL,
+    images JSON DEFAULT NULL,
+    is_verified_purchase BOOLEAN DEFAULT FALSE,
+    is_approved BOOLEAN DEFAULT FALSE,
+    admin_reply TEXT DEFAULT NULL,
+    replied_at TIMESTAMP DEFAULT NULL,
+    helpful_count INT DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_reviews_product (product_id),
+    INDEX idx_reviews_user (user_id),
+    INDEX idx_reviews_approved (is_approved),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: stock_movements
--- =====================================================
-CREATE TABLE IF NOT EXISTS stock_movements (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    product_id INT NOT NULL,
-    variant_id INT DEFAULT NULL,
-    warehouse_id INT DEFAULT NULL,
-    movement_type ENUM(
-        'import',
-        'export',
-        'transfer_in',
-        'transfer_out',
-        'adjustment',
-        'return_in',
-        'return_out',
-        'damage',
-        'gift',
-        'sample'
-    ) NOT NULL,
-    quantity INT NOT NULL,
-    quantity_before INT DEFAULT NULL,
-    quantity_after INT DEFAULT NULL,
-    unit_cost DECIMAL(12, 2) DEFAULT NULL,
-    reference_type VARCHAR(50) DEFAULT NULL,
-    reference_id INT DEFAULT NULL,
-    supplier_id INT DEFAULT NULL,
-    employee_id INT DEFAULT NULL,
-    reason VARCHAR(500) DEFAULT NULL,
-    note TEXT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by INT DEFAULT NULL,
-    INDEX idx_stock_product (product_id),
-    INDEX idx_stock_variant (variant_id),
-    INDEX idx_stock_warehouse (warehouse_id),
-    INDEX idx_stock_type (movement_type),
-    INDEX idx_stock_reference (reference_type, reference_id),
-    INDEX idx_stock_created (created_at),
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL,
-    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
-    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL,
-    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: return_requests
--- =====================================================
-CREATE TABLE IF NOT EXISTS return_requests (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    request_code VARCHAR(50) NOT NULL UNIQUE,
-    order_id INT NOT NULL,
-    order_item_id INT DEFAULT NULL,
-    user_id INT NOT NULL,
-    reason_type ENUM(
-        'wrong_item',
-        'defective',
-        'not_as_described',
-        'size_issue',
-        'changed_mind',
-        'late_delivery',
-        'other'
-    ) NOT NULL,
-    reason_description TEXT DEFAULT NULL,
-    request_type ENUM('return', 'exchange', 'refund') DEFAULT 'return',
-    requested_quantity INT DEFAULT 1,
-    exchange_product_id INT DEFAULT NULL,
-    exchange_variant_id INT DEFAULT NULL,
-    status ENUM('pending', 'approved', 'rejected', 'received', 'processing', 'completed', 'cancelled') DEFAULT 'pending',
-    admin_note TEXT DEFAULT NULL,
-    processed_by INT DEFAULT NULL,
-    processed_at TIMESTAMP DEFAULT NULL,
-    refund_amount DECIMAL(12, 2) DEFAULT 0.00,
-    points_refund INT DEFAULT 0,
-    new_order_id INT DEFAULT NULL,
-    images JSON DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_returns_code (request_code),
-    INDEX idx_returns_order (order_id),
-    INDEX idx_returns_user (user_id),
-    INDEX idx_returns_status (status),
-    INDEX idx_returns_reason (reason_type),
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE SET NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (processed_by) REFERENCES employees(id) ON DELETE SET NULL,
-    FOREIGN KEY (exchange_product_id) REFERENCES products(id) ON DELETE SET NULL,
-    FOREIGN KEY (exchange_variant_id) REFERENCES product_variants(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: news
+-- TABLE: news (Blog)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS news (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -712,228 +584,50 @@ CREATE TABLE IF NOT EXISTS news (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: contacts
+-- TABLE: newsletter
 -- =====================================================
-CREATE TABLE IF NOT EXISTS contacts (
+CREATE TABLE IF NOT EXISTS newsletter (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) DEFAULT NULL,
-    subject VARCHAR(255) DEFAULT NULL,
-    message TEXT NOT NULL,
-    contact_type ENUM('general', 'complaint', 'suggestion', 'partnership', 'warranty', 'recruitment') DEFAULT 'general',
-    priority ENUM('low', 'medium', 'high', 'urgent') DEFAULT 'medium',
-    status ENUM('new', 'assigned', 'in_progress', 'replied', 'resolved', 'closed', 'archived') DEFAULT 'new',
-    assigned_to INT DEFAULT NULL,
-    admin_reply TEXT DEFAULT NULL,
-    replied_at TIMESTAMP DEFAULT NULL,
-    is_replied BOOLEAN DEFAULT FALSE,
-    source ENUM('website', 'phone', 'email', 'social', 'in_person', 'other') DEFAULT 'website',
-    ip_address VARCHAR(45) DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_contacts_status (status),
-    INDEX idx_contacts_type (contact_type),
-    INDEX idx_contacts_priority (priority),
-    INDEX idx_contacts_email (email),
-    INDEX idx_contacts_created (created_at),
-    FOREIGN KEY (assigned_to) REFERENCES employees(id) ON DELETE SET NULL
+    email VARCHAR(255) NOT NULL UNIQUE,
+    is_active BOOLEAN DEFAULT TRUE,
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    unsubscribed_at TIMESTAMP DEFAULT NULL,
+    INDEX idx_newsletter_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: settings
+-- TABLE: coupon_usage
 -- =====================================================
-CREATE TABLE IF NOT EXISTS settings (
+CREATE TABLE IF NOT EXISTS coupon_usage (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    setting_key VARCHAR(100) NOT NULL UNIQUE,
-    setting_value TEXT DEFAULT NULL,
-    setting_type ENUM('string', 'number', 'boolean', 'json', 'array') DEFAULT 'string',
-    group_name VARCHAR(50) DEFAULT 'general',
+    voucher_id INT NOT NULL,
+    user_id INT NOT NULL,
+    order_id INT NOT NULL,
+    discount_amount DECIMAL(12, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_voucher_order (voucher_id, order_id),
+    FOREIGN KEY (voucher_id) REFERENCES vouchers(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: reward_points
+-- =====================================================
+CREATE TABLE IF NOT EXISTS reward_points (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    points INT NOT NULL,
+    points_type ENUM('earn', 'redeem', 'expire', 'refund', 'bonus', 'adjustment') NOT NULL,
+    balance_after INT DEFAULT NULL,
     description VARCHAR(255) DEFAULT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_settings_key (setting_key),
-    INDEX idx_settings_group (group_name)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: shipping_providers
--- =====================================================
-CREATE TABLE IF NOT EXISTS shipping_providers (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    logo VARCHAR(500) DEFAULT NULL,
-    website VARCHAR(255) DEFAULT NULL,
-    tracking_url VARCHAR(500) DEFAULT NULL,
-    api_key VARCHAR(255) DEFAULT NULL,
-    api_secret VARCHAR(255) DEFAULT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    sort_order INT DEFAULT 0,
+    order_id INT DEFAULT NULL,
+    expires_at TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_providers_code (code),
-    INDEX idx_providers_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: shipping_zones
--- =====================================================
-CREATE TABLE IF NOT EXISTS shipping_zones (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    cities JSON NOT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    sort_order INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: shipping_fees
--- =====================================================
-CREATE TABLE IF NOT EXISTS shipping_fees (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    provider_id INT NOT NULL,
-    zone_id INT NOT NULL,
-    min_weight DECIMAL(10, 2) DEFAULT 0.00,
-    max_weight DECIMAL(10, 2) DEFAULT 5.00,
-    base_fee DECIMAL(12, 2) NOT NULL,
-    fee_per_kg DECIMAL(12, 2) DEFAULT 0.00,
-    estimated_days_min INT DEFAULT 1,
-    estimated_days_max INT DEFAULT 5,
-    is_active BOOLEAN DEFAULT TRUE,
-    INDEX idx_fees_provider (provider_id),
-    INDEX idx_fees_zone (zone_id),
-    FOREIGN KEY (provider_id) REFERENCES shipping_providers(id) ON DELETE CASCADE,
-    FOREIGN KEY (zone_id) REFERENCES shipping_zones(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: payment_methods
--- =====================================================
-CREATE TABLE IF NOT EXISTS payment_methods (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    name VARCHAR(100) NOT NULL,
-    description TEXT DEFAULT NULL,
-    icon VARCHAR(255) DEFAULT NULL,
-    is_online BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    sort_order INT DEFAULT 0,
-    config JSON DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_payment_code (code),
-    INDEX idx_payment_active (is_active)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: supplier_orders
--- =====================================================
-CREATE TABLE IF NOT EXISTS supplier_orders (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    order_code VARCHAR(50) NOT NULL UNIQUE,
-    supplier_id INT NOT NULL,
-    warehouse_id INT DEFAULT NULL,
-    employee_id INT DEFAULT NULL,
-    status ENUM('draft', 'pending', 'confirmed', 'ordered', 'partial_received', 'received', 'cancelled') DEFAULT 'draft',
-    order_date DATE DEFAULT NULL,
-    expected_date DATE DEFAULT NULL,
-    received_date DATE DEFAULT NULL,
-    subtotal DECIMAL(15, 2) DEFAULT 0.00,
-    discount_amount DECIMAL(15, 2) DEFAULT 0.00,
-    tax_amount DECIMAL(15, 2) DEFAULT 0.00,
-    total_amount DECIMAL(15, 2) DEFAULT 0.00,
-    paid_amount DECIMAL(15, 2) DEFAULT 0.00,
-    payment_status ENUM('unpaid', 'partial', 'paid') DEFAULT 'unpaid',
-    payment_due_date DATE DEFAULT NULL,
-    note TEXT DEFAULT NULL,
-    internal_note TEXT DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_supplier_orders_code (order_code),
-    INDEX idx_supplier_orders_supplier (supplier_id),
-    INDEX idx_supplier_orders_status (status),
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
-    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
-    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: supplier_order_items
--- =====================================================
-CREATE TABLE IF NOT EXISTS supplier_order_items (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    supplier_order_id INT NOT NULL,
-    product_id INT NOT NULL,
-    variant_id INT DEFAULT NULL,
-    size_id INT DEFAULT NULL,
-    color_id INT DEFAULT NULL,
-    product_name VARCHAR(255) NOT NULL,
-    product_sku VARCHAR(100) DEFAULT NULL,
-    variant_name VARCHAR(100) DEFAULT NULL,
-    quantity_ordered INT NOT NULL DEFAULT 0,
-    quantity_received INT DEFAULT 0,
-    quantity_remaining INT DEFAULT 0,
-    unit_cost DECIMAL(12, 2) NOT NULL,
-    discount_percent DECIMAL(5, 2) DEFAULT 0.00,
-    total_cost DECIMAL(15, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_supplier_items_order (supplier_order_id),
-    INDEX idx_supplier_items_product (product_id),
-    FOREIGN KEY (supplier_order_id) REFERENCES supplier_orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE SET NULL,
-    FOREIGN KEY (size_id) REFERENCES sizes(id) ON DELETE SET NULL,
-    FOREIGN KEY (color_id) REFERENCES colors(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: expense_categories
--- =====================================================
-CREATE TABLE IF NOT EXISTS expense_categories (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    code VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT DEFAULT NULL,
-    parent_id INT DEFAULT NULL,
-    is_system BOOLEAN DEFAULT FALSE,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_expense_categories_code (code),
-    FOREIGN KEY (parent_id) REFERENCES expense_categories(id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- =====================================================
--- TABLE: expenses
--- =====================================================
-CREATE TABLE IF NOT EXISTS expenses (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    expense_code VARCHAR(50) NOT NULL UNIQUE,
-    category_id INT NOT NULL,
-    warehouse_id INT DEFAULT NULL,
-    description VARCHAR(255) NOT NULL,
-    amount DECIMAL(15, 2) NOT NULL,
-    expense_date DATE NOT NULL,
-    payment_method ENUM('cash', 'bank_transfer', 'other') DEFAULT 'cash',
-    supplier_id INT DEFAULT NULL,
-    reference_type VARCHAR(50) DEFAULT NULL,
-    reference_id INT DEFAULT NULL,
-    employee_id INT DEFAULT NULL,
-    approved_by INT DEFAULT NULL,
-    status ENUM('pending', 'approved', 'rejected', 'paid') DEFAULT 'pending',
-    note TEXT DEFAULT NULL,
-    receipt_image VARCHAR(500) DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_expenses_code (expense_code),
-    INDEX idx_expenses_category (category_id),
-    INDEX idx_expenses_date (expense_date),
-    INDEX idx_expenses_status (status),
-    FOREIGN KEY (category_id) REFERENCES expense_categories(id) ON DELETE CASCADE,
-    FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE SET NULL,
-    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
-    FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
+    INDEX idx_points_user (user_id),
+    INDEX idx_points_type (points_type),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
@@ -951,30 +645,38 @@ CREATE TABLE IF NOT EXISTS notifications (
     read_at TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_notifications_user (user_id),
-    INDEX idx_notifications_type (type),
     INDEX idx_notifications_read (is_read),
-    INDEX idx_notifications_created (created_at),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- =====================================================
--- TABLE: activity_logs
+-- TABLE: settings
 -- =====================================================
-CREATE TABLE IF NOT EXISTS activity_logs (
+CREATE TABLE IF NOT EXISTS settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT DEFAULT NULL,
-    action VARCHAR(100) NOT NULL,
-    entity_type VARCHAR(50) DEFAULT NULL,
-    entity_id INT DEFAULT NULL,
-    description TEXT DEFAULT NULL,
-    changes JSON DEFAULT NULL,
-    ip_address VARCHAR(45) DEFAULT NULL,
-    user_agent VARCHAR(500) DEFAULT NULL,
-    device_info VARCHAR(255) DEFAULT NULL,
+    setting_key VARCHAR(100) NOT NULL UNIQUE,
+    setting_value TEXT DEFAULT NULL,
+    setting_type ENUM('string', 'number', 'boolean', 'json') DEFAULT 'string',
+    group_name VARCHAR(50) DEFAULT 'general',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_settings_key (setting_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =====================================================
+-- TABLE: contacts
+-- =====================================================
+CREATE TABLE IF NOT EXISTS contacts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) DEFAULT NULL,
+    subject VARCHAR(255) DEFAULT NULL,
+    message TEXT NOT NULL,
+    status ENUM('new', 'replied', 'closed') DEFAULT 'new',
+    admin_reply TEXT DEFAULT NULL,
+    replied_at TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_logs_user (user_id),
-    INDEX idx_logs_action (action),
-    INDEX idx_logs_entity (entity_type, entity_id),
-    INDEX idx_logs_created (created_at),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_contacts_status (status),
+    INDEX idx_contacts_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -3,9 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import Newsletter from '../components/Newsletter'
+import ProductFilters from '../components/ProductFilters'
 import { productAPI } from '../services/api'
 import { formatPrice } from '../utils/formatPrice'
-import { useCart } from '../contexts/CartContext'
 import { useToast } from '../contexts/ToastContext'
 
 const StarRating = ({ rating = 0 }) => {
@@ -27,7 +27,6 @@ const StarRating = ({ rating = 0 }) => {
 }
 
 const MenPage = () => {
-  const { addItem } = useCart()
   const toast = useToast()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -43,11 +42,13 @@ const MenPage = () => {
   const [selectedSizes, setSelectedSizes] = useState([])
   const [selectedColors, setSelectedColors] = useState([])
   const [priceRange, setPriceRange] = useState([0, 5000000])
+  const [selectedDiscounts, setSelectedDiscounts] = useState([])
   const [sortBy, setSortBy] = useState('newest')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalProducts, setTotalProducts] = useState(0)
   
-  const productsPerPage = 6
+  const productsPerPage = 8
 
   // Fetch categories từ API
   useEffect(() => {
@@ -70,12 +71,13 @@ const MenPage = () => {
           
           setCategories([
             { id: 'all', name: 'Tất cả', count: totalMale },
-            { id: 'ao-thun-nam', name: 'Áo thun', count: categoryCounts['ao-thun-nam'] || 0 },
-            { id: 'ao-so-mi-nam', name: 'Sơ mi', count: categoryCounts['ao-so-mi-nam'] || 0 },
-            { id: 'quan-jeans-nam', name: 'Quần', count: (categoryCounts['quan-jeans-nam'] || 0) + (categoryCounts['quan-tay-nam'] || 0) + (categoryCounts['quan-short-nam'] || 0) },
-            { id: 'ao-khoac-nam', name: 'Áo khoác', count: categoryCounts['ao-khoac-nam'] || 0 },
-            { id: 'ao-polo-nam', name: 'Áo polo', count: categoryCounts['ao-polo-nam'] || 0 }
-          ])
+            { id: 'ao-thun', name: 'Áo Thun', count: categoryCounts['ao-thun'] || 0 },
+            { id: 'ao-so-mi', name: 'Áo Sơ Mi', count: categoryCounts['ao-so-mi'] || 0 },
+            { id: 'quan-jeans', name: 'Quần Jeans', count: (categoryCounts['quan-jeans'] || 0) + (categoryCounts['quan-short'] || 0) },
+            { id: 'ao-polo', name: 'Áo Polo', count: categoryCounts['ao-polo'] || 0 },
+            { id: 'homewear', name: 'Homewear', count: categoryCounts['homewear'] || 0 },
+            { id: 'tshirt', name: 'T-Shirt', count: categoryCounts['tshirt'] || 0 }
+          ].filter(c => c.count > 0 || c.id === 'all'))
           
           setSizes(['S', 'M', 'L', 'XL', 'XXL'])
           
@@ -90,12 +92,7 @@ const MenPage = () => {
       } catch (error) {
         console.error('Error fetching categories:', error)
         setCategories([
-          { id: 'all', name: 'Tất cả', count: 0 },
-          { id: 'ao-thun-nam', name: 'Áo thun', count: 0 },
-          { id: 'ao-so-mi-nam', name: 'Sơ mi', count: 0 },
-          { id: 'quan-jeans-nam', name: 'Quần', count: 0 },
-          { id: 'ao-khoac-nam', name: 'Áo khoác', count: 0 },
-          { id: 'ao-polo-nam', name: 'Áo polo', count: 0 }
+          { id: 'all', name: 'Tất cả', count: 0 }
         ])
         setSizes(['S', 'M', 'L', 'XL', 'XXL'])
         setColors([
@@ -115,37 +112,62 @@ const MenPage = () => {
     const fetchProducts = async () => {
       setLoading(true)
       try {
+        const sortMap = {
+          newest: 'created_at',
+          'price-asc': 'price',
+          'price-desc': 'price',
+          'best-seller': 'total_sold'
+        }
         const params = {
           gender: 'male',
           page,
           limit: productsPerPage,
-          sort: sortBy === 'newest' ? 'created_at' : sortBy
+          sort: sortMap[sortBy] || 'created_at',
+          order: sortBy === 'price-asc' ? 'asc' : 'desc'
         }
         
         if (selectedCategory !== 'all') {
           params.category = selectedCategory
         }
-        
+
+        if (priceRange[0] > 0) {
+          params.min_price = priceRange[0]
+        }
+        if (priceRange[1] < 5000000) {
+          params.max_price = priceRange[1]
+        }
+        if (selectedSizes.length > 0) {
+          params.size = selectedSizes.join(',')
+        }
+        if (selectedColors.length > 0) {
+          params.color = selectedColors.join(',')
+        }
+        if (selectedDiscounts.length > 0) {
+          params.discount = selectedDiscounts.join(',')
+        }
+
         const response = await productAPI.getProducts(params)
         
         if (response.success && response.data) {
           setProducts(response.data.products || [])
           setTotalPages(response.data.pagination?.total_pages || 1)
+          setTotalProducts(response.data.pagination?.total || 0)
         } else {
-          // Fallback demo products
-          setProducts(getDemoProducts())
-          setTotalPages(3)
+          setProducts([])
+          setTotalPages(1)
+          setTotalProducts(0)
         }
       } catch (error) {
         console.error('Error fetching products:', error)
-        setProducts(getDemoProducts())
-        setTotalPages(3)
+        setProducts([])
+        setTotalPages(1)
+        setTotalProducts(0)
       } finally {
         setLoading(false)
       }
     }
     fetchProducts()
-  }, [selectedCategory, selectedSizes, selectedColors, priceRange, sortBy, page])
+  }, [selectedCategory, selectedSizes, selectedColors, priceRange, selectedDiscounts, sortBy, page])
 
   // Demo products fallback
   const getDemoProducts = () => [
@@ -234,8 +256,8 @@ const MenPage = () => {
   const handleAddToCart = (e, product) => {
     e.preventDefault()
     e.stopPropagation()
-    addItem(product, 1, null, null)
-    toast.success(`Đã thêm "${product.name}" vào giỏ hàng!`)
+    toast.info('Vui lòng chọn size/màu trước khi thêm vào giỏ hàng.')
+    navigate(`/product/${product.slug}`)
   }
 
   const handleQuickView = (e, product) => {
@@ -244,15 +266,13 @@ const MenPage = () => {
     navigate(`/product/${product.slug}`)
   }
 
-  const totalProducts = products.length > 0 ? products.length * totalPages : 84
-
   return (
     <div className="min-h-screen bg-background">
       <Header cartCount={0} />
       
-      <main className="pt-28 max-w-screen-2xl mx-auto px-12 pb-12">
+      <main className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12 pt-6 pb-12">
         {/* Breadcrumbs & Header */}
-        <div className="mb-12">
+        <div className="mb-0">
           <nav className="flex items-center gap-2 text-on-surface-variant text-sm mb-4 uppercase tracking-widest font-label">
             <Link className="hover:text-primary transition-colors" to="/">Trang chủ</Link>
             <span className="material-symbols-outlined text-xs">chevron_right</span>
@@ -264,101 +284,23 @@ const MenPage = () => {
           </p>
         </div>
 
-        <div className="flex gap-16">
+        <div className="flex gap-20">
           {/* Sidebar Filter */}
-          <aside className="w-72 flex-shrink-0 hidden lg:block">
-            <div className="space-y-12 sticky top-32">
-              {/* Categories */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Danh mục</h3>
-                <ul className="space-y-1 text-on-surface-variant divide-y divide-outline-variant">
-                  {categories.map((cat) => (
-                    <li key={cat.id}>
-                      <button
-                        onClick={() => {
-                          setSelectedCategory(cat.id)
-                          setPage(1)
-                        }}
-                        className={`flex justify-between items-center w-full text-left py-2 px-3 -my-px transition-all ${
-                          selectedCategory === cat.id 
-                            ? 'text-primary font-medium bg-primary/10' 
-                            : 'hover:text-primary hover:bg-surface-container'
-                        }`}
-                      >
-                        <span>{cat.name}</span>
-                        <span className="text-xs opacity-50">{cat.count}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Size */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Kích thước</h3>
-                <div className="grid grid-cols-4 gap-2">
-                  {sizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => toggleSize(size)}
-                      className={`py-2 border text-xs font-bold uppercase transition-all ${
-                        selectedSizes.includes(size)
-                          ? 'border-primary bg-primary text-white'
-                          : 'border-outline-variant hover:border-primary hover:text-primary'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Price Range */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Khoảng giá</h3>
-                <div className="px-2">
-                  <input
-                    type="range"
-                    min="0"
-                    max="5000000"
-                    step="100000"
-                    value={priceRange[1]}
-                    onChange={(e) => {
-                      setPriceRange([priceRange[0], Number(e.target.value)])
-                      setPage(1)
-                    }}
-                    className="w-full h-1 bg-surface-container rounded-full appearance-none cursor-pointer accent-primary mb-4"
-                  />
-                  <div className="flex justify-between text-xs font-medium text-on-surface-variant font-label">
-                    <span>{formatPrice(priceRange[0])}</span>
-                    <span>{formatPrice(priceRange[1])}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Colors */}
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-on-surface mb-6 headline">Màu sắc</h3>
-                <div className="flex flex-wrap gap-3">
-                  {colors.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => toggleColor(color.id)}
-                      className={`w-8 h-8 rounded-full transition-all ${
-                        color.hex === '#ffffff' ? 'border border-outline-variant' : ''
-                      } ${
-                        selectedColors.includes(color.id) 
-                          ? 'ring-2 ring-primary ring-offset-2' 
-                          : ''
-                      }`}
-                      style={{ backgroundColor: color.hex }}
-                      title={color.name}
-                    ></button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </aside>
+          <ProductFilters
+            categoryList={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={(id) => { setSelectedCategory(id); setPage(1) }}
+            selectedSizes={selectedSizes}
+            onSizeChange={(sizes) => { setSelectedSizes(sizes); setPage(1) }}
+            selectedColors={selectedColors}
+            onColorChange={(colors) => { setSelectedColors(colors); setPage(1) }}
+            sizeList={sizes}
+            colorList={colors}
+            priceRange={priceRange}
+            onPriceChange={(range) => { setPriceRange(range); setPage(1) }}
+            selectedDiscounts={selectedDiscounts}
+            onDiscountChange={(discounts) => { setSelectedDiscounts(discounts); setPage(1) }}
+          />
 
           {/* Product Display Area */}
           <section className="flex-grow">
@@ -392,8 +334,12 @@ const MenPage = () => {
               <div className="flex justify-center py-20">
                 <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full"></div>
               </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-20 bg-white border border-[#e5e7eb]">
+                <p className="text-[#6b7280] text-base">Không tìm thấy sản phẩm phù hợp.</p>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-y-16 gap-x-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-y-12 xl:gap-y-16 gap-x-6 xl:gap-x-8">
                 {products.map((product) => {
                   const discountPercent = product.compare_price && product.compare_price > product.price
                     ? Math.round((1 - product.price / product.compare_price) * 100)
@@ -429,7 +375,7 @@ const MenPage = () => {
                         <div className="product-action absolute inset-0 bg-black/40 opacity-0 flex flex-col justify-end p-6 transition-all duration-300 group-hover:opacity-100">
                           <button
                             onClick={(e) => handleAddToCart(e, product)}
-                            className="w-full bg-white text-on-surface py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#4F46E5] hover:text-white transition-colors mb-2"
+                            className="w-full bg-white text-on-surface py-4 text-xs font-bold uppercase tracking-widest hover:bg-[#DA291C] hover:text-white transition-colors mb-2"
                           >
                             Thêm vào giỏ
                           </button>

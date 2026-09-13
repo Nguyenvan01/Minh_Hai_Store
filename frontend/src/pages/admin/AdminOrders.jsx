@@ -15,7 +15,7 @@ const STATUS_CONFIG = {
     icon: Clock, next: ['confirmed', 'cancelled']
   },
   confirmed: {
-    label: 'Đã xác nhận', color: 'bg-blue-50 text-blue-700 border-blue-200',
+    label: 'Đã xác nhận', color: 'bg-red-50 text-red-700 border-red-200',
     icon: CheckCircle, next: ['processing', 'cancelled']
   },
   processing: {
@@ -23,7 +23,7 @@ const STATUS_CONFIG = {
     icon: Package, next: ['shipped', 'cancelled']
   },
   shipped: {
-    label: 'Đang giao', color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    label: 'Đang giao', color: 'bg-purple-50 text-purple-700 border-purple-200',
     icon: Truck, next: ['delivered', 'returned']
   },
   delivered: {
@@ -43,14 +43,18 @@ const STATUS_CONFIG = {
 const PAYMENT_CONFIG = {
   unpaid: { label: 'Chưa thanh toán', color: 'bg-red-50 text-red-600' },
   paid: { label: 'Đã thanh toán', color: 'bg-green-50 text-green-600' },
-  partially_paid: { label: 'Thanh toán 1 phần', color: 'bg-blue-50 text-blue-600' },
+  partially_paid: { label: 'Thanh toán 1 phần', color: 'bg-red-50 text-[#d71920]' },
   refunded: { label: 'Đã hoàn tiền', color: 'bg-gray-100 text-gray-600' },
-  failed: { label: 'Thanh toán thất bại', color: 'bg-orange-50 text-orange-600' },
 }
 
 const PAYMENT_METHODS = {
   cod: 'COD', vnpay: 'VNPay', momo: 'MoMo',
   bank_transfer: 'Chuyển khoản', credit_card: 'Thẻ',
+}
+
+const SHIPPING_METHODS = {
+  standard: 'Giao hàng tiêu chuẩn',
+  express: 'Giao hàng nhanh',
 }
 
 const NEXT_STATUS_LABELS = {
@@ -159,7 +163,7 @@ export default function AdminOrders() {
           message: statusMessages[newStatus].msg,
           link: '/admin/orders',
           icon: newStatus === 'delivered' ? 'package_check' : newStatus === 'shipped' ? 'truck' : 'check_circle',
-          color: newStatus === 'delivered' ? 'green' : newStatus === 'cancelled' ? 'red' : 'blue',
+          color: newStatus === 'delivered' ? 'green' : newStatus === 'cancelled' ? 'red' : 'info',
         })
         fetchNotifications(true)
       }
@@ -221,6 +225,51 @@ export default function AdminOrders() {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
   })
 
+  const cleanText = (value) => {
+    const text = String(value ?? '').trim()
+    if (!text || ['null', 'undefined'].includes(text.toLowerCase())) return ''
+    return text
+  }
+
+  const joinText = (...parts) => parts.map(cleanText).filter(Boolean).join(', ')
+
+  const getOrderCode = (order) => cleanText(order?.order_number) || cleanText(order?.id)
+
+  const formatAddress = (order = {}) => {
+    const shipping = order.shipping_info || {}
+    const directAddress = cleanText(shipping.address) || cleanText(order.shipping_full_address)
+    if (directAddress) return directAddress
+
+    const detail = cleanText(shipping.address_detail) || cleanText(order.address_detail)
+    if (detail) {
+      return joinText(
+        detail,
+        shipping.ward_name || order.shipping_ward_name || order.ward_name || order.shipping_ward || order.ward,
+        shipping.district_name || order.shipping_district_name || order.district_name || order.shipping_district || order.district,
+        shipping.city_name || order.shipping_city_name || order.city_name || order.shipping_city || order.city
+      )
+    }
+
+    return cleanText(order.shipping_address) || joinText(
+      shipping.ward_name || order.shipping_ward_name || order.ward_name || order.shipping_ward || order.ward,
+      shipping.district_name || order.shipping_district_name || order.district_name || order.shipping_district || order.district,
+      shipping.city_name || order.shipping_city_name || order.city_name || order.shipping_city || order.city
+    ) || 'Chưa có địa chỉ giao hàng'
+  }
+
+  const getRecipientName = (order = {}) => {
+    return cleanText(order.shipping_info?.recipient_name) || cleanText(order.recipient_name) || cleanText(order.customer_name) || 'Khách vãng lai'
+  }
+
+  const getRecipientPhone = (order = {}) => {
+    return cleanText(order.shipping_info?.recipient_phone) || cleanText(order.recipient_phone) || cleanText(order.customer_phone) || 'Chưa có số điện thoại'
+  }
+
+  const getShippingMethod = (order = {}) => {
+    const method = cleanText(order.shipping_info?.method) || cleanText(order.shipping_method)
+    return SHIPPING_METHODS[method] || method || 'Chưa xác định'
+  }
+
   const statusCount = (s) => stats?.[s] || orders.filter(o => o.status === s).length
 
   return (
@@ -237,12 +286,12 @@ export default function AdminOrders() {
               setPage(1)
             }}
               className={`bg-white rounded-xl p-3.5 text-left border shadow-sm transition-all hover:shadow-md cursor-pointer
-                ${isActive ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-100'}`}>
+                ${isActive ? 'border-red-400 ring-2 ring-red-100' : 'border-gray-100'}`}>
               <div className="flex items-center gap-2 mb-1.5">
-                <Icon size={14} className={isActive ? 'text-blue-600' : 'text-gray-400'} />
+                <Icon size={14} className={isActive ? 'text-[#d71920]' : 'text-gray-400'} />
                 <span className="text-xs text-gray-500 font-medium">{v.label}</span>
               </div>
-              <p className={`text-xl font-bold ${isActive ? 'text-blue-600' : 'text-gray-900'}`}>{count}</p>
+              <p className={`text-xl font-bold ${isActive ? 'text-[#d71920]' : 'text-gray-900'}`}>{count}</p>
             </button>
           )
         })}
@@ -256,15 +305,15 @@ export default function AdminOrders() {
             <input type="text" placeholder="Tìm mã đơn, tên, SĐT, email..."
               value={filters.search}
               onChange={e => { setFilters(f => ({ ...f, search: e.target.value })); setPage(1) }}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
           </div>
           <select value={filters.status} onChange={e => { setFilters(f => ({ ...f, status: e.target.value })); setPage(1) }}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-100">
             <option value="">Tất cả trạng thái</option>
             {Object.entries(STATUS_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
           <select value={filters.payment_status} onChange={e => { setFilters(f => ({ ...f, payment_status: e.target.value })); setPage(1) }}
-            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            className="px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-red-100">
             <option value="">Tất cả TT thanh toán</option>
             {Object.entries(PAYMENT_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
@@ -280,13 +329,13 @@ export default function AdminOrders() {
               <label className="block text-xs text-gray-500 mb-1">Từ ngày</label>
               <input type="date" value={filters.date_from}
                 onChange={e => { setFilters(f => ({ ...f, date_from: e.target.value })); setPage(1) }}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Đến ngày</label>
               <input type="date" value={filters.date_to}
                 onChange={e => { setFilters(f => ({ ...f, date_to: e.target.value })); setPage(1) }}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
             </div>
             <button onClick={() => { setFilters({ search: '', status: '', payment_status: '', date_from: '', date_to: '' }); setPage(1) }}
               className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -330,7 +379,7 @@ export default function AdminOrders() {
               ) : orders.map(order => (
                 <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-4 py-3.5">
-                    <span className="text-sm font-bold text-blue-600">{order.order_number}</span>
+                    <span className="text-sm font-bold text-[#d71920]">{order.order_number}</span>
                   </td>
                   <td className="px-4 py-3.5">
                     <p className="text-sm font-medium text-gray-800">{order.customer_name || 'Khách vãng lai'}</p>
@@ -354,7 +403,7 @@ export default function AdminOrders() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center justify-center gap-1">
                       <button onClick={() => openDetail(order)}
-                        className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Xem chi tiết">
+                        className="p-2 rounded-lg text-gray-400 hover:text-[#d71920] hover:bg-red-50 transition-colors" title="Xem chi tiết">
                         <Eye size={16} />
                       </button>
                       {order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'returned' && (
@@ -383,7 +432,7 @@ export default function AdminOrders() {
                 const p = start + i
                 return p <= totalPages && (
                   <button key={p} onClick={() => setPage(p)}
-                    className={`w-9 h-9 rounded-lg text-sm font-medium ${page === p ? 'bg-blue-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                    className={`w-9 h-9 rounded-lg text-sm font-medium ${page === p ? 'bg-[#d71920] text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
                     {p}
                   </button>
                 )
@@ -404,8 +453,8 @@ export default function AdminOrders() {
               <div className="flex items-center gap-3">
                 <button onClick={() => setDetailOrder(null)} className="p-2 rounded-lg hover:bg-gray-100"><X size={20} /></button>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">{detailOrder.order_number}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{formatDate(detailOrder.created_at)}</p>
+                  <h3 className="text-lg font-bold text-gray-900">Chi tiết đơn hàng #{getOrderCode(detailOrder)}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Ngày đặt: {formatDate(detailOrder.created_at)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -420,42 +469,50 @@ export default function AdminOrders() {
 
             <div className="p-6 space-y-5 max-h-[calc(100vh-12rem)] overflow-y-auto">
               {detailLoading ? (
-                <div className="flex items-center justify-center py-12"><Loader2 size={32} className="animate-spin text-blue-600" /></div>
+                <div className="flex items-center justify-center py-12"><Loader2 size={32} className="animate-spin text-[#d71920]" /></div>
               ) : (
                 <>
                   {/* Customer + Address */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Khách hàng</h4>
-                      <p className="font-semibold text-gray-800">{detailOrder.customer_name || 'Khách vãng lai'}</p>
-                      <p className="text-sm text-gray-500 mt-1">{detailOrder.customer_email}</p>
+                      <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Người nhận</h4>
+                      <p className="font-semibold text-gray-800">{getRecipientName(detailOrder)}</p>
+                      {detailOrder.customer_email && <p className="text-sm text-gray-500 mt-1">{detailOrder.customer_email}</p>}
                       <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                        <Phone size={13} /> {detailOrder.customer_phone}
+                        <Phone size={13} /> {getRecipientPhone(detailOrder)}
                       </p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Địa chỉ giao hàng</h4>
                       <p className="text-sm text-gray-700 flex items-start gap-1">
                         <MapPin size={14} className="mt-0.5 flex-shrink-0" />
-                        {detailOrder.shipping_full_address}
+                        <span>{formatAddress(detailOrder)}</span>
                       </p>
-                      <p className="text-sm text-gray-500 mt-1">{detailOrder.shipping_city}</p>
+                      <p className="text-sm text-gray-500 mt-2">Vận chuyển: {getShippingMethod(detailOrder)}</p>
                     </div>
                   </div>
 
                   {/* Payment + Shipping info */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     <div className="bg-gray-50 rounded-xl p-3.5">
-                      <p className="text-xs text-gray-500">Phương thức</p>
+                      <p className="text-xs text-gray-500">Mã đơn</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">#{getOrderCode(detailOrder)}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3.5">
+                      <p className="text-xs text-gray-500">Phương thức thanh toán</p>
                       <p className="font-semibold text-gray-800 mt-0.5">{PAYMENT_METHODS[detailOrder.payment_method] || detailOrder.payment_method}</p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3.5">
-                      <p className="text-xs text-gray-500">Điểm tích luỹ</p>
-                      <p className="font-semibold text-gray-800 mt-0.5">+{detailOrder.points_earned || 0}</p>
+                      <p className="text-xs text-gray-500">Trạng thái thanh toán</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{PAYMENT_CONFIG[detailOrder.payment_status]?.label || detailOrder.payment_status}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3.5">
+                      <p className="text-xs text-gray-500">Phương thức vận chuyển</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{getShippingMethod(detailOrder)}</p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3.5">
                       <p className="text-xs text-gray-500">Mã giảm giá</p>
-                      <p className="font-semibold text-gray-800 mt-0.5">{detailOrder.discount_code || '—'}</p>
+                      <p className="font-semibold text-gray-800 mt-0.5">{detailOrder.discount_code || detailOrder.coupon_code || '—'}</p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3.5">
                       <p className="text-xs text-gray-500">Cập nhật lần cuối</p>
@@ -471,12 +528,11 @@ export default function AdminOrders() {
                         <select
                           value={detailOrder.payment_status}
                           onChange={e => updatePayment(detailOrder.id, e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100">
                           <option value="">Chọn trạng thái</option>
                           <option value="paid">Đã thanh toán</option>
                           <option value="unpaid">Chưa thanh toán</option>
                           <option value="partially_paid">Thanh toán 1 phần</option>
-                          <option value="failed">Thanh toán thất bại</option>
                         </select>
                       </div>
                     </div>
@@ -484,8 +540,8 @@ export default function AdminOrders() {
 
                   {/* Status Workflow */}
                   {STATUS_CONFIG[detailOrder.status]?.next?.length > 0 && (
-                    <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                      <h4 className="text-sm font-semibold text-blue-800 mb-3">Cập nhật trạng thái đơn hàng</h4>
+                    <div className="bg-red-50 rounded-xl p-4 border border-red-100">
+                      <h4 className="text-sm font-semibold text-red-800 mb-3">Cập nhật trạng thái đơn hàng</h4>
                       <div className="flex flex-wrap gap-2">
                         {STATUS_CONFIG[detailOrder.status]?.next?.map(nextStatus => (
                           <button key={nextStatus} onClick={() => updateStatus(detailOrder.id, nextStatus)}
@@ -493,7 +549,7 @@ export default function AdminOrders() {
                             className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2
                               ${nextStatus === 'cancelled'
                                 ? 'border-red-200 text-red-600 hover:bg-red-50 bg-white'
-                                : 'border-blue-200 text-blue-600 hover:bg-blue-100 bg-white'}
+                                : 'border-red-200 text-[#d71920] hover:bg-red-100 bg-white'}
                               disabled:opacity-50`}>
                             {updating === nextStatus ? <Loader2 size={14} className="animate-spin" /> : null}
                             {NEXT_STATUS_LABELS[detailOrder.status]?.[nextStatus] || nextStatus}
@@ -589,8 +645,8 @@ export default function AdminOrders() {
                       </div>
                     )}
                     <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-200">
-                      <span>Thành tiền</span>
-                      <span className="text-blue-600 text-lg">{formatPrice(detailOrder.total_price)}</span>
+                      <span>Tổng thanh toán</span>
+                      <span className="text-[#d71920] text-lg">{formatPrice(detailOrder.total_price)}</span>
                     </div>
                   </div>
 
@@ -601,7 +657,7 @@ export default function AdminOrders() {
                       <div className="space-y-2">
                         {detailOrder.logs.map((log, idx) => (
                           <div key={log.id || idx} className="flex items-start gap-3 text-sm">
-                            <div className="w-2 h-2 rounded-full bg-blue-400 mt-1.5 flex-shrink-0" />
+                            <div className="w-2 h-2 rounded-full bg-red-400 mt-1.5 flex-shrink-0" />
                             <div className="flex-1">
                               <p className="text-gray-700">{log.description}</p>
                               <p className="text-xs text-gray-400">{formatDate(log.created_at)}</p>

@@ -84,7 +84,7 @@ export default function AdminCoupons() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-800">Mã giảm giá</h2>
         <button onClick={() => { setEditing(null); setForm(emptyCoupon); setShowForm(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+          className="flex items-center gap-2 px-4 py-2.5 bg-[#d71920] text-white rounded-lg text-sm font-medium hover:bg-red-700">
           <Plus size={18} /> Thêm mã
         </button>
       </div>
@@ -119,7 +119,7 @@ export default function AdminCoupons() {
               {coupons.map(c => (
                 <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-5 py-3.5">
-                    <span className="text-sm font-bold font-mono text-blue-600 bg-blue-50 px-2 py-1 rounded">{c.code}</span>
+                    <span className="text-sm font-bold font-mono text-[#d71920] bg-red-50 px-2 py-1 rounded">{c.code}</span>
                   </td>
                   <td className="px-5 py-3.5">
                     <p className="text-sm font-semibold text-gray-800">{c.name || c.code}</p>
@@ -163,19 +163,19 @@ export default function AdminCoupons() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mã <span className="text-red-500">*</span></label>
                   <input type="text" value={form.code} required onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên</label>
                   <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Loại mã</label>
                   <select value={form.coupon_type} onChange={e => setForm({ ...form, coupon_type: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100">
                     <option value="general">Chung</option>
                     <option value="first_order">Khách hàng mới</option>
                     <option value="specific_product">Sản phẩm cụ thể</option>
@@ -185,7 +185,7 @@ export default function AdminCoupons() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giảm theo</label>
                   <select value={form.discount_type} onChange={e => setForm({ ...form, discount_type: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100">
                     <option value="percentage">%</option>
                     <option value="fixed_amount">Số tiền</option>
                   </select>
@@ -195,43 +195,43 @@ export default function AdminCoupons() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giá trị <span className="text-red-500">*</span></label>
                   <input type="number" value={form.discount_value} required onChange={e => setForm({ ...form, discount_value: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Giảm tối đa</label>
                   <input type="number" value={form.max_discount_amount} onChange={e => setForm({ ...form, max_discount_amount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Đơn tối thiểu</label>
                   <input type="number" value={form.min_order_amount} onChange={e => setForm({ ...form, min_order_amount: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">SL sử dụng</label>
                   <input type="number" value={form.max_usage_total} onChange={e => setForm({ ...form, max_usage_total: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Từ ngày</label>
                   <input type="date" value={form.valid_from} onChange={e => setForm({ ...form, valid_from: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Đến ngày</label>
                   <input type="date" value={form.valid_until} onChange={e => setForm({ ...form, valid_until: e.target.value })}
-                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="w-full px-3.5 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-100" />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowForm(false); setEditing(null); setForm(emptyCoupon) }}
                   className="flex-1 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Hủy</button>
                 <button type="submit"
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+                  className="flex-1 px-4 py-2.5 bg-[#d71920] text-white rounded-lg text-sm font-medium hover:bg-red-700">
                   {editing ? 'Cập nhật' : 'Tạo mới'}
                 </button>
               </div>

@@ -1,281 +1,182 @@
-const db = require('../config/database');
-
 /**
  * Homepage Controller
- * Sử dụng chính xác database schema có sẵn
+ * Sử dụng database schema v2 - thiết kế phù hợp giao diện frontend
+ *
+ * Frontend sections → Database tables:
+ * - banners (slider) → banners
+ * - vouchers (khuyến mãi) → vouchers
+ * - featuredProducts (sản phẩm mới) → products (is_featured = TRUE)
+ * - collections (bộ sưu tập) → collections
+ * - categoryRow (dòng hàng nổi bật) → categories (is_featured = TRUE)
+ * - homewearProducts → products (category: homewear)
+ * - tshirtProducts → products (category: tshirt)
+ * - vayProducts → products (category: vay)
+ * - news (blog) → news
+ * - flashSale → vouchers (discount_type = 'percentage', valid_until > NOW())
  */
 
+const db = require('../config/database');
+
 module.exports = {
-  /**
-   * GET /api/home
-   * Lấy toàn bộ dữ liệu trang chủ
-   * 
-   * Database mapping:
-   * - banners → promotions (promotion_type = 'flash_sale', banner = image)
-   * - categories → categories (is_featured = TRUE)
-   * - featuredProducts → products (is_featured = TRUE)
-   * - bestSellers → products (ORDER BY total_sold DESC)
-   * - flashSales → products trong promotions
-   * - brands → brands (is_featured = TRUE)
-   * - reviews → product_reviews
-   * - news → news
-   */
   getHomeData: async (req, res) => {
     try {
-      // 1. BANNERS - Từ promotions với banner image
+      // 1. BANNERS - Slider trang chủ
       const [banners] = await db.query(`
-        SELECT 
-          p.id,
-          p.name,
-          p.description,
-          p.banner as image,
-          p.banner_url as link_url,
-          p.slug,
-          p.discount_type,
-          p.discount_value,
-          p.valid_from,
-          p.valid_until,
-          p.promotion_type
-        FROM promotions p
-        WHERE p.is_active = TRUE
-          AND p.banner IS NOT NULL
-          AND p.banner != ''
-          AND (p.valid_until IS NULL OR p.valid_until > NOW())
-        ORDER BY p.priority DESC, p.created_at DESC
+        SELECT
+          id,
+          title,
+          slug,
+          image,
+          link_url,
+          description,
+          sort_order
+        FROM banners
+        WHERE is_active = TRUE
+          AND (valid_until IS NULL OR valid_until > NOW())
+        ORDER BY sort_order ASC
         LIMIT 5
       `);
 
-      // 2. CATEGORIES - Featured categories
-      const [categories] = await db.query(`
-        SELECT 
+      // 2. VOUCHERS - Ưu đãi nổi bật
+      const [vouchers] = await db.query(`
+        SELECT
           id,
-          name,
-          slug,
-          image,
+          code,
+          title,
           description,
-          icon
-        FROM categories
-        WHERE is_active = TRUE 
-          AND is_featured = TRUE
-        ORDER BY sort_order ASC
+          discount_type,
+          discount_value,
+          min_order_amount,
+          valid_until,
+          CASE
+            WHEN DATEDIFF(valid_until, NOW()) <= 3 THEN TRUE
+            ELSE FALSE
+          END as is_expiring_soon
+        FROM vouchers
+        WHERE is_active = TRUE
+          AND (valid_until IS NULL OR valid_until > NOW())
+        ORDER BY valid_until ASC
         LIMIT 4
       `);
 
-      // 3. FEATURED PRODUCTS - Sản phẩm nổi bật
+      // Transform vouchers to match frontend expectations
+      const transformedVouchers = vouchers.map(v => ({
+        ...v,
+        expiry: v.valid_until,
+        condition: v.min_order_amount > 0
+          ? `Đơn từ ${new Intl.NumberFormat('vi-VN').format(v.min_order_amount)}đ`
+          : 'Không giới hạn đơn'
+      }));
+
+      // 3. FEATURED PRODUCTS - Sản phẩm nổi bật (SẢN PHẨM MỚI)
       const [featuredProducts] = await db.query(`
-        SELECT 
-          p.id,
-          p.name,
-          p.slug,
-          p.short_description,
-          p.price,
-          p.compare_price,
-          p.stock,
-          p.total_sold,
-          p.gender,
-          p.is_featured,
-          p.material,
-          p.season,
-          c.name as category_name,
-          c.slug as category_slug,
-          b.name as brand_name,
-          b.slug as brand_slug,
+        SELECT
+          p.id, p.name, p.slug, p.short_description,
+          p.price, p.compare_price, p.stock, p.total_sold, p.gender,
+          p.is_featured, p.material,
+          c.name as category_name, c.slug as category_slug,
+          b.name as brand_name, b.slug as brand_slug,
           (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url,
           (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as avg_rating,
           (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as review_count
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE p.is_active = TRUE 
-          AND p.is_featured = TRUE
+        WHERE p.is_active = TRUE AND p.is_featured = TRUE
         ORDER BY p.created_at DESC
         LIMIT 8
       `);
 
-      // 4. BEST SELLERS - Sản phẩm bán chạy
-      const [bestSellers] = await db.query(`
-        SELECT 
-          p.id,
-          p.name,
-          p.slug,
-          p.short_description,
-          p.price,
-          p.compare_price,
-          p.stock,
-          p.total_sold,
-          p.gender,
-          c.name as category_name,
-          b.name as brand_name,
+      // 4. HOMEWEAR PRODUCTS - Sản phẩm homewear (4 sản phẩm)
+      const [homewearProducts] = await db.query(`
+        SELECT
+          p.id, p.name, p.slug, p.short_description,
+          p.price, p.compare_price, p.stock, p.total_sold, p.gender,
           (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url,
-          (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as avg_rating,
-          (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as review_count
+          (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) > 0 as is_online_exclusive
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN brands b ON p.brand_id = b.id
-        WHERE p.is_active = TRUE 
-          AND p.total_sold > 0
-        ORDER BY p.total_sold DESC
-        LIMIT 8
-      `);
-
-      // 5. FLASH SALE PRODUCTS - Sản phẩm trong khuyến mãi flash_sale
-      const [flashSales] = await db.query(`
-        SELECT DISTINCT
-          p.id,
-          p.name,
-          p.slug,
-          p.short_description,
-          p.price,
-          p.compare_price,
-          p.stock,
-          p.total_sold,
-          p.gender,
-          c.name as category_name,
-          b.name as brand_name,
-          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url,
-          (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as avg_rating,
-          (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as review_count,
-          pr.discount_value as sale_percent,
-          pr.valid_until as sale_end_time
-        FROM products p
-        INNER JOIN promotions pr ON (
-          JSON_CONTAINS(COALESCE(pr.applicable_products, '[]'), CAST(p.id AS CHAR))
-          OR JSON_CONTAINS(COALESCE(pr.applicable_categories, '[]'), CAST(p.category_id AS CHAR))
-        )
-        LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN brands b ON p.brand_id = b.id
         WHERE p.is_active = TRUE
-          AND pr.is_active = TRUE
-          AND pr.promotion_type = 'flash_sale'
-          AND pr.valid_from <= NOW()
-          AND (pr.valid_until IS NULL OR pr.valid_until > NOW())
-        ORDER BY p.total_sold DESC
-        LIMIT 10
+          AND c.slug = 'homewear'
+        ORDER BY p.created_at DESC
+        LIMIT 4
       `);
 
-      // 5b. SALE PRODUCTS - Sản phẩm có compare_price > price (giảm giá thường)
-      const [saleProducts] = await db.query(`
-        SELECT 
-          p.id,
-          p.name,
-          p.slug,
-          p.short_description,
-          p.price,
-          p.compare_price,
-          p.stock,
-          p.total_sold,
-          p.gender,
-          c.name as category_name,
-          b.name as brand_name,
-          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url,
-          (SELECT AVG(rating) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as avg_rating,
-          (SELECT COUNT(*) FROM product_reviews WHERE product_id = p.id AND is_approved = TRUE AND is_active = TRUE) as review_count
+      // 5. T-SHIRT PRODUCTS - 4 sản phẩm
+      const [tshirtProducts] = await db.query(`
+        SELECT
+          p.id, p.name, p.slug, p.short_description,
+          p.price, p.compare_price, p.stock, p.total_sold, p.gender,
+          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url
         FROM products p
         LEFT JOIN categories c ON p.category_id = c.id
-        LEFT JOIN brands b ON p.brand_id = b.id
         WHERE p.is_active = TRUE
-          AND p.compare_price IS NOT NULL
-          AND p.compare_price > p.price
-        ORDER BY (p.compare_price - p.price) DESC
-        LIMIT 8
+          AND c.slug = 'tshirt'
+        ORDER BY p.created_at DESC
+        LIMIT 4
       `);
 
-      // 6. BRANDS - Thương hiệu nổi bật
-      const [brands] = await db.query(`
-        SELECT 
-          id,
-          name,
-          slug,
-          logo,
-          description,
-          country,
-          website
-        FROM brands
-        WHERE is_active = TRUE 
-          AND is_featured = TRUE
-        ORDER BY name ASC
-        LIMIT 8
+      // 6. VÁY PRODUCTS - 4 sản phẩm
+      const [vayProducts] = await db.query(`
+        SELECT
+          p.id, p.name, p.slug, p.short_description,
+          p.price, p.compare_price, p.stock, p.total_sold, p.gender,
+          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as image_url
+        FROM products p
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE p.is_active = TRUE
+          AND c.slug = 'vay'
+        ORDER BY p.created_at DESC
+        LIMIT 4
       `);
 
-      // 7. REVIEWS - Đánh giá sản phẩm
-      const [reviews] = await db.query(`
-        SELECT 
-          pr.id,
-          pr.product_id,
-          pr.rating,
-          pr.title,
-          pr.content,
-          pr.created_at,
-          pr.is_verified_purchase,
-          p.name as product_name,
-          p.slug as product_slug,
-          (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = TRUE LIMIT 1) as product_image,
-          u.name as user_name,
-          u.avatar as user_avatar
-        FROM product_reviews pr
-        INNER JOIN products p ON pr.product_id = p.id
-        INNER JOIN users u ON pr.user_id = u.id
-        WHERE pr.is_approved = TRUE
-        ORDER BY pr.created_at DESC
-        LIMIT 6
-      `);
-
-      // 8. NEWS/BLOG - Tin tức
-      const [news] = await db.query(`
-        SELECT 
-          id,
-          title,
-          slug,
-          summary,
-          thumbnail,
-          category,
-          tags,
-          view_count,
-          author_name,
-          published_at
-        FROM news
-        WHERE is_published = TRUE
-          AND published_at IS NOT NULL
-          AND published_at <= NOW()
-        ORDER BY published_at DESC
+      // 7. COLLECTIONS - Bộ sưu tập
+      const [collections] = await db.query(`
+        SELECT
+          id, title, slug, description, image, cta, cta_text, sort_order
+        FROM collections
+        WHERE is_active = TRUE AND is_featured = TRUE
+        ORDER BY sort_order ASC
         LIMIT 3
       `);
 
-      // Tính countdown cho flash sale
-      let flashSaleTimer = null;
-      if (flashSales.length > 0) {
-        const endTime = new Date(flashSales[0].sale_end_time);
-        const now = new Date();
-        const diff = endTime - now;
-        
-        if (diff > 0) {
-          flashSaleTimer = {
-            hours: Math.floor(diff / (1000 * 60 * 60)),
-            minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
-            seconds: Math.floor((diff % (1000 * 60)) / 1000)
-          };
-        }
-      }
+      // 8. CATEGORIES (CategoryRow) - Dòng hàng nổi bật
+      const [categories] = await db.query(`
+        SELECT
+          id, name, slug, image, icon, description
+        FROM categories
+        WHERE is_active = TRUE AND is_featured = TRUE
+        ORDER BY sort_order ASC
+        LIMIT 4
+      `);
+
+      // 9. NEWS/BLOG - Tin tức
+      const [news] = await db.query(`
+        SELECT
+          id, title, slug, summary, thumbnail, thumbnail as image_url, category, tags,
+          view_count, author_name, published_at
+        FROM news
+        WHERE is_published = TRUE
+          AND deleted_at IS NULL
+          AND published_at IS NOT NULL
+          AND published_at <= NOW()
+        ORDER BY published_at DESC
+        LIMIT 5
+      `);
 
       // Response
       res.json({
         success: true,
         data: {
-          banners: banners.map(b => ({
-            ...b,
-            image: b.image || 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=1920'
-          })),
-          categories: categories.length > 0 ? categories : getDefaultCategories(),
+          banners: banners.length > 0 ? banners : getDefaultBanners(),
+          vouchers: transformedVouchers.length > 0 ? transformedVouchers : getDefaultVouchers(),
           featuredProducts: featuredProducts.map(enrichProduct),
-          bestSellers: bestSellers.map(enrichProduct),
-          flashSales: {
-            products: flashSales.map(enrichProduct),
-            timer: flashSaleTimer || { hours: 0, minutes: 0, seconds: 0 }
-          },
-          saleProducts: saleProducts.map(enrichProduct),
-          brands: brands.length > 0 ? brands : getDefaultBrands(),
-          reviews: reviews,
-          news: news.length > 0 ? news : getDefaultNews()
+          homewearProducts: homewearProducts.map(enrichProduct),
+          tshirtProducts: tshirtProducts.map(enrichProduct),
+          vayProducts: vayProducts.map(enrichProduct),
+          collections: collections.length > 0 ? collections : getDefaultCollections(),
+          categories: categories.length > 0 ? categories : getDefaultCategories(),
+          news
         }
       });
 
@@ -283,78 +184,72 @@ module.exports = {
       console.error('Error fetching home data:', error);
       res.status(500).json({
         success: false,
-        message: 'Không thể tải dữ liệu trang chủ',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        message: 'Không thể tải dữ liệu trang chủ'
       });
     }
   }
 };
 
-// Helper: Enrich product với computed fields
 function enrichProduct(product) {
-  //Ưu tiên sale_percent từ promotion flash_sale, không tính lại từ compare_price
-  const discountPercent = product.sale_percent
-    ? parseInt(product.sale_percent)
-    : (product.compare_price && product.compare_price > product.price
-      ? Math.round((1 - product.price / product.compare_price) * 100)
-      : 0);
+  const discountPercent = (product.compare_price && product.compare_price > product.price)
+    ? Math.round((1 - product.price / product.compare_price) * 100)
+    : 0;
+
+  const primaryImage = product.image_url || 'https://via.placeholder.com/400x533';
+  const images = product.images?.length > 0
+    ? product.images
+    : primaryImage
+      ? [primaryImage]
+      : ['https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=600'];
 
   return {
     ...product,
+    images,
     avg_rating: parseFloat(product.avg_rating) || 0,
     review_count: parseInt(product.review_count) || 0,
     discount_percent: discountPercent,
-    image_url: product.image_url || 'https://via.placeholder.com/400x533',
+    image_url: primaryImage,
     is_on_sale: discountPercent > 0,
     is_out_of_stock: product.stock === 0
   };
 }
 
-// Default data khi database trống
+function getDefaultBanners() {
+  return [
+    { id: 1, title: '', slug: '', image: 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/2/8/2880x960007052026.webp', link_url: null, description: '' },
+    { id: 2, title: '', slug: '', image: 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/a/o/aophong-desk-210326.webp', link_url: null, description: '' },
+    { id: 3, title: 'Banner SS', slug: 'banner-ss', image: 'http://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/s/s/ssnd_topbanner_desktop-020526.webp', link_url: null, description: '' }
+  ];
+}
+
+function getDefaultVouchers() {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const twoMonths = new Date(now);
+  twoMonths.setMonth(twoMonths.getMonth() + 2);
+
+  return [
+    { id: 1, code: 'VOUCHER100K', title: 'Voucher 100K', description: 'Giảm 100k cho đơn từ 799k', discount_type: 'fixed_amount', discount_value: 100000, min_order_amount: 799000, valid_until: tomorrow.toISOString().slice(0, 19).replace('T', ' '), is_expiring_soon: true, expiry: tomorrow.toISOString().slice(0, 19).replace('T', ' '), condition: 'Đơn từ 799.000đ' },
+    { id: 2, code: 'VOUCHER200K', title: 'Voucher 200K', description: 'Giảm 200k cho đơn từ 1.099k', discount_type: 'fixed_amount', discount_value: 200000, min_order_amount: 1099000, valid_until: tomorrow.toISOString().slice(0, 19).replace('T', ' '), is_expiring_soon: true, expiry: tomorrow.toISOString().slice(0, 19).replace('T', ' '), condition: 'Đơn từ 1.099.000đ' },
+    { id: 3, code: 'VOUCHER50K', title: 'Voucher 50K', description: 'Giảm 50k cho đơn từ 399k', discount_type: 'fixed_amount', discount_value: 50000, min_order_amount: 399000, valid_until: twoMonths.toISOString().slice(0, 19).replace('T', ' '), is_expiring_soon: false, expiry: twoMonths.toISOString().slice(0, 19).replace('T', ' '), condition: 'Đơn từ 399.000đ' },
+    { id: 4, code: 'NEWUSER80K', title: 'Voucher 80K', description: 'Giảm 80k cho đơn Online đầu tiên', discount_type: 'fixed_amount', discount_value: 80000, min_order_amount: 0, valid_until: twoMonths.toISOString().slice(0, 19).replace('T', ' '), is_expiring_soon: false, expiry: twoMonths.toISOString().slice(0, 19).replace('T', ' '), condition: 'Khách hàng mới' }
+  ];
+}
+
+function getDefaultCollections() {
+  return [
+    { id: 1, title: 'DORAEMON', image: 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/d/o/doraemon_bst_homepage-140426.webp', cta: '/collections/doraemon', cta_text: 'Khám phá' },
+    { id: 2, title: 'CANIFA S - TỰ HÀO VIỆT NAM', image: 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/c/a/canifas_bst_homepage-140426.webp', cta: '/collections/canifa-s', cta_text: 'Khám phá' },
+    { id: 3, title: 'DISNEY', image: 'https://2885371169.e.cdneverest.net/Simiconnector/BannerSlider/d/i/disney_bst_homepage-140426.webp', cta: '/collections/disney', cta_text: 'Khám phá' }
+  ];
+}
+
 function getDefaultCategories() {
   return [
-    { id: 1, name: 'Áo thun', slug: 'ao-thun', image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800' },
-    { id: 2, name: 'Phụ kiện', slug: 'phu-kien', image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600' },
-    { id: 3, name: 'Jean', slug: 'jean', image: 'https://images.unsplash.com/photo-1542272604-787c3835535d?w=600' },
-    { id: 4, name: 'Giày', slug: 'giay', image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600' }
-  ];
-}
-
-function getDefaultBrands() {
-  return [
-    { id: 1, name: 'NIKE', slug: 'nike' },
-    { id: 2, name: 'ADIDAS', slug: 'adidas' },
-    { id: 3, name: 'ZARA', slug: 'zara' },
-    { id: 4, name: 'H&M', slug: 'hm' },
-    { id: 5, name: 'UNIQLO', slug: 'uniqlo' }
-  ];
-}
-
-function getDefaultNews() {
-  return [
-    {
-      id: 1,
-      title: 'Tương lai của những đường may cắt bằng Laser',
-      slug: 'tuong-lai-duong-may-cat-laser',
-      summary: 'Khám phá cách tự động hóa robot đang định nghĩa lại độ chính xác của cấu trúc thời trang kiến trúc.',
-      thumbnail: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=600',
-      category: 'Bền vững'
-    },
-    {
-      id: 2,
-      title: 'Giao điểm: Công năng & Hình thái',
-      slug: 'giao-diem-cong-nang-hinh-thai',
-      summary: 'Nhà thiết kế chính của chúng tôi thảo luận về sự cân bằng giữa túi ưu tiên tiện dụng và kiểu dáng sàn diễn cao cấp.',
-      thumbnail: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=600',
-      category: 'Phòng thí nghiệm thiết kế'
-    },
-    {
-      id: 3,
-      title: 'Tính linh động đô thị năm 2024',
-      slug: 'tinh-linh-dong-do-thi-2024',
-      summary: 'Tại sao trang phục kỹ thuật đang trở thành đồng phục hàng ngày cho những người du mục kỹ thuật số hiện đại.',
-      thumbnail: 'https://images.unsplash.com/photo-1514580428313-1a8b7c43b55e?w=600',
-      category: 'Văn hóa'
-    }
+    { id: 1, name: 'Áo Thun Nam', slug: 'ao-thun-nam', image: 'https://2885371169.e.cdneverest.net//catalog/category/men-4_3_Ao-phong_Ao-phong-basic.webp', cta: '/ao-thun-nam' },
+    { id: 2, name: 'Áo Sơ Mi Nam', slug: 'ao-so-mi-nam', image: 'https://2885371169.e.cdneverest.net//catalog/category/men-6_1_Ao-so-mi_Tat-ca.webp', cta: '/ao-so-mi-nam' },
+    { id: 3, name: 'Quần Jeans Nam', slug: 'quan-jeans-nam', image: 'https://2885371169.e.cdneverest.net//catalog/category/men-7_2_Quan_Quan-jeans.webp', cta: '/quan-jeans-nam' },
+    { id: 4, name: 'Áo Blouse Nữ', slug: 'ao-blouse-nu', image: 'https://cdn.hstatic.net/products/1000402464/fwbl25fh07c__2__9894f50b0d6f419d849330beb60c5fe6_master.jpg', cta: '/ao-blouse-nu' }
   ];
 }

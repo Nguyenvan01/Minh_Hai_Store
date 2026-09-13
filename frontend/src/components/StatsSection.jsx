@@ -29,7 +29,7 @@ const StatsSection = () => {
             Con số ấn tượng
           </h2>
           <p className="text-slate-400 text-base max-w-lg mx-auto">
-            Những con số chứng minh sự tin tưởng của khách hàng dành cho CLOTH
+            Những con số chứng minh sự tin tưởng của khách hàng dành cho Minh Hải
           </p>
         </div>
 

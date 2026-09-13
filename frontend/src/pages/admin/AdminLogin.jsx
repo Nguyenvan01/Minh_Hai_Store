@@ -6,8 +6,8 @@ import { Eye, EyeOff } from 'lucide-react'
 export default function AdminLogin() {
   const { login, error, clearError } = useAdminAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('admin@clothing-store.vn')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
 
@@ -23,19 +23,14 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl mb-4">
-            <span className="text-white font-bold text-2xl">C</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">CLOTH Admin</h1>
-          <p className="text-gray-400 text-sm mt-1">Đăng nhập để quản lý cửa hàng</p>
+          <h1 className="text-2xl font-bold text-gray-900">Minh Hải Admin</h1>
+          <p className="text-gray-500 text-sm mt-1">Đăng nhập để quản lý cửa hàng</p>
         </div>
 
-        {/* Form */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
@@ -50,7 +45,7 @@ export default function AdminLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-transparent"
                 placeholder="admin@clothing-store.vn"
               />
             </div>
@@ -63,8 +58,8 @@ export default function AdminLogin() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-100 focus:border-transparent"
+                  placeholder="Nhập mật khẩu admin"
                 />
                 <button
                   type="button"
@@ -79,21 +74,21 @@ export default function AdminLogin() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-blue-800 disabled:opacity-60 transition-all shadow-lg shadow-blue-600/25"
+              className="w-full py-3 bg-[#d71920] text-white rounded-xl font-semibold text-sm hover:bg-red-700 disabled:opacity-60 transition-all"
             >
               {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
-            <Link to="/" className="text-sm text-gray-400 hover:text-blue-500 transition-colors">
+            <Link to="/" className="text-sm text-gray-400 hover:text-red-500 transition-colors">
               ← Quay về cửa hàng
             </Link>
           </div>
         </div>
 
-        <p className="text-center text-gray-500 text-xs mt-6">
-          © 2026 CLOTH Store. All rights reserved.
+        <p className="text-center text-gray-400 text-xs mt-6">
+          &copy; 2026 Minh Hải Store. Bảo lưu mọi quyền.
         </p>
       </div>
     </div>
