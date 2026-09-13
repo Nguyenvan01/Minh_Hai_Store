@@ -1,6 +1,10 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+// Khi build production ma thieu VITE_API_URL thi phai roi ve '/api' (cung origin),
+// KHONG duoc roi ve localhost: bundle se bao trinh duyet cua khach goi ve may HO.
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:5000/api' : '/api')
 
 const api = axios.create({
   baseURL: API_BASE_URL,
