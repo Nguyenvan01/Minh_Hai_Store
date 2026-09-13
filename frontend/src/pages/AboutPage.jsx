@@ -15,7 +15,7 @@ const AboutPage = () => {
           <div className="relative text-center text-white px-4">
             <h1 className="text-5xl font-bold mb-4">Về Chúng Tôi</h1>
             <p className="text-xl text-white/80 max-w-2xl mx-auto">
-              Minh Hải - Thương hiệu thời trang Việt Nam hướng đến sự bền vững và phong cách hiện đại
+              Đạt Hoàng - Thương hiệu thời trang Việt Nam hướng đến sự bền vững và phong cách hiện đại
             </p>
           </div>
         </section>
@@ -27,13 +27,13 @@ const AboutPage = () => {
               <span className="text-xs font-bold tracking-[0.2em] text-primary uppercase">Câu chuyện</span>
               <h2 className="text-4xl font-bold mt-2 mb-6">Khởi nguồn từ đam mê</h2>
               <p className="text-slate-600 leading-relaxed mb-4">
-                Minh Hải được thành lập vào năm 2018 với sứ mệnh mang đến những sản phẩm thời trang chất lượng cao với giá thành hợp lý cho người Việt.
+                Đạt Hoàng được thành lập vào năm 2018 với sứ mệnh mang đến những sản phẩm thời trang chất lượng cao với giá thành hợp lý cho người Việt.
               </p>
               <p className="text-slate-600 leading-relaxed mb-4">
                 Chúng tôi tin rằng thời trang không chỉ là về vẻ bề ngoài, mà còn là cách bạn thể hiện cá tính và phong cách sống của mình.
               </p>
               <p className="text-slate-600 leading-relaxed">
-                Từ một cửa hàng nhỏ tại Quận 1, Minh Hải đã phát triển thành một thương hiệu thời trang được yêu thích trên toàn quốc với hệ thống cửa hàng và cộng đồng khách hàng ngày càng lớn mạnh.
+                Từ một cửa hàng nhỏ tại Quận 1, Đạt Hoàng đã phát triển thành một thương hiệu thời trang được yêu thích trên toàn quốc với hệ thống cửa hàng và cộng đồng khách hàng ngày càng lớn mạnh.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -72,7 +72,7 @@ const AboutPage = () => {
                   <span className="material-symbols-outlined text-3xl text-primary">diversity_3</span>
                 </div>
                 <h3 className="text-xl font-bold mb-3">Cộng đồng</h3>
-                <p className="text-slate-600">Minh Hải không chỉ là thương hiệu, mà còn là một cộng đồng những người yêu thời trang.</p>
+                <p className="text-slate-600">Đạt Hoàng không chỉ là thương hiệu, mà còn là một cộng đồng những người yêu thời trang.</p>
               </div>
             </div>
           </div>

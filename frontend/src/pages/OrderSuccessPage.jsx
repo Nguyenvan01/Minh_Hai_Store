@@ -106,8 +106,8 @@ const OrderSuccessPage = () => {
           </h1>
           <p className="text-[#74869B] text-base lg:text-lg max-w-md mx-auto leading-relaxed">
             {isPendingPayment
-              ? `Cảm ơn bạn đã đặt hàng tại Minh Hải. Vui lòng hoàn tất thanh toán để chúng tôi xử lý đơn hàng.`
-              : `Cảm ơn bạn đã mua hàng tại Minh Hải. Đơn hàng của bạn đã được ghi nhận và đang chờ xử lý.`
+              ? `Cảm ơn bạn đã đặt hàng tại Đạt Hoàng. Vui lòng hoàn tất thanh toán để chúng tôi xử lý đơn hàng.`
+              : `Cảm ơn bạn đã mua hàng tại Đạt Hoàng. Đơn hàng của bạn đã được ghi nhận và đang chờ xử lý.`
             }
           </p>
 
@@ -136,7 +136,7 @@ const OrderSuccessPage = () => {
                   <div key={idx} className="px-5 py-4 flex items-center gap-4">
                     <div className="w-16 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                       <img
-                        src={item.image || 'https://via.placeholder.com/64x80?text=Minh+Hai'}
+                        src={item.image || 'https://via.placeholder.com/64x80?text=Dat+Hoang'}
                         alt={item.name}
                         className="w-full h-full object-cover"
                         onError={(e) => { e.target.style.display = 'none' }}

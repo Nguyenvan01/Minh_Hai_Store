@@ -39,7 +39,7 @@ const CLiveSection = ({ image, cta = '/app' }) => {
               </div>
             </div>
             <div>
-              <p className="font-bold text-sm text-white">Tải app Minh Hải</p>
+              <p className="font-bold text-sm text-white">Tải app Đạt Hoàng</p>
               <small className="font-medium text-white/70 text-xs">Trải nghiệm C-LIVE ngay hôm nay</small>
             </div>
           </div>

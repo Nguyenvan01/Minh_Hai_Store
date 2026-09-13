@@ -124,7 +124,7 @@ const BlogDetailPage = () => {
                 {article.author_name ? article.author_name.charAt(0).toUpperCase() : 'C'}
               </div>
               <div>
-                <p className="font-semibold text-sm text-[#131b2e]">{article.author_name || 'Minh Hải Editorial'}</p>
+                <p className="font-semibold text-sm text-[#131b2e]">{article.author_name || 'Đạt Hoàng Editorial'}</p>
                 <p className="text-xs text-slate-500">{formatDate(article.published_at)}</p>
               </div>
               <div className="ml-auto flex items-center gap-1 text-slate-400 text-sm">

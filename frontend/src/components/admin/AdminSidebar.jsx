@@ -63,7 +63,7 @@ export default function AdminSidebar({ collapsed, onToggle }) {
             <div className="w-8 h-8 bg-[#d71920] text-white rounded-lg flex items-center justify-center font-bold text-sm">
               C
             </div>
-            <span className="font-bold text-lg tracking-tight text-[#2f3840]">Minh Hải Admin</span>
+            <span className="font-bold text-lg tracking-tight text-[#2f3840]">Đạt Hoàng Admin</span>
           </Link>
         )}
         <button

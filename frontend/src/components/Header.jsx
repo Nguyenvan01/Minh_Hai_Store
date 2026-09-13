@@ -107,7 +107,7 @@ const Header = () => {
         <div className="container">
           <div className="flex items-center h-16 lg:h-[72px] gap-4">
             <Link to="/" className="text-xl lg:text-2xl font-black tracking-[0.1em] text-[#333F48] flex-shrink-0 transition-opacity duration-200 hover:opacity-80">
-              Minh Hải
+              Đạt Hoàng
             </Link>
 
           {/* Desktop Nav */}

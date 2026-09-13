@@ -232,7 +232,7 @@ const CheckoutPage = () => {
       <div className="checkout-page">
         <header className="checkout-header">
           <div className="checkout-header-inner">
-            <Link to="/" className="checkout-logo">Minh Hải</Link>
+            <Link to="/" className="checkout-logo">Đạt Hoàng</Link>
             <StepIndicator />
             <Link to="/" className="checkout-continue-link">
               Tiếp tục mua sắm
@@ -267,7 +267,7 @@ const CheckoutPage = () => {
       {/* ---- Header ---- */}
       <header className="checkout-header">
         <div className="checkout-header-inner">
-          <Link to="/" className="checkout-logo">Minh Hải</Link>
+          <Link to="/" className="checkout-logo">Đạt Hoàng</Link>
           <StepIndicator />
           <Link to="/" className="checkout-continue-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -289,8 +289,8 @@ const CheckoutPage = () => {
               <path d="M22 8v4M10.25 5.5H6.8C5.12 5.5 4.28 5.5 3.64 5.83A3 3 0 0 0 2.33 7.14C2 7.78 2 8.62 2 10.3v1.2c0 .93 0 1.4.15 1.77.1.24.25.46.44.65.18.18.4.33.64.43.37.15.84.15 1.77.15v4.25c0 .23 0 .35.01.45.05.46.25.89.58 1.22.32.32.75.53 1.21.57.1.01.22.01.45.01s.35 0 .45-.01c.46-.04.89-.25 1.21-.57.33-.33.53-.76.58-1.22.01-.1.01-.22.01-.45V14.5h.75c1.77 0 3.93.95 5.59 1.86.98.53 1.46.79 1.78.75.14-.01.27-.06.39-.13.12-.07.22-.17.3-.28.19-.26.19-.78.19-1.83V5.13c0-1.05 0-1.57-.19-1.83a1 1 0 0 0-.69-.41c-.32-.04-.8.23-1.78.76-1.66.9-3.82 1.85-5.59 1.85Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <div>
-              <strong>Cảnh báo mạo danh Minh Hải:</strong>
-              <span> Gần đây xuất hiện mạo danh thương hiệu khi giao hàng. Quý khách cảnh giác với đơn hàng/cuộc gọi lạ. Đồng kiểm khi nhận. Không chuyển khoản trước, không trả thêm phí với các đơn đã thanh toán. Liên hệ Minh Hải để xác minh khi có nghi ngờ.</span>
+              <strong>Cảnh báo mạo danh Đạt Hoàng:</strong>
+              <span> Gần đây xuất hiện mạo danh thương hiệu khi giao hàng. Quý khách cảnh giác với đơn hàng/cuộc gọi lạ. Đồng kiểm khi nhận. Không chuyển khoản trước, không trả thêm phí với các đơn đã thanh toán. Liên hệ Đạt Hoàng để xác minh khi có nghi ngờ.</span>
             </div>
           </div>
 

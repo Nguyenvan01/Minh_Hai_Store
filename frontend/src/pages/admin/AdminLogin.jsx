@@ -26,7 +26,7 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Minh Hải Admin</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Đạt Hoàng Admin</h1>
           <p className="text-gray-500 text-sm mt-1">Đăng nhập để quản lý cửa hàng</p>
         </div>
 
@@ -88,7 +88,7 @@ export default function AdminLogin() {
         </div>
 
         <p className="text-center text-gray-400 text-xs mt-6">
-          &copy; 2026 Minh Hải Store. Bảo lưu mọi quyền.
+          &copy; 2026 Đạt Hoàng Store. Bảo lưu mọi quyền.
         </p>
       </div>
     </div>

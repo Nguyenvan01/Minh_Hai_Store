@@ -44,7 +44,7 @@ function RecentFavorites({ products = [], limit = 4 }) {
                       <img src={image} alt={getProductName(product)} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] font-semibold text-[#adbccd]">
-                        Minh Hải
+                        Đạt Hoàng
                       </div>
                     )}
                   </Link>

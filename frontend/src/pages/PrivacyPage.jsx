@@ -42,7 +42,7 @@ const sections = [
   {
     number: '04',
     title: 'Bảo mật thông tin',
-    body: 'Minh Hải cam kết bảo vệ thông tin cá nhân của bạn bằng các biện pháp:',
+    body: 'Đạt Hoàng cam kết bảo vệ thông tin cá nhân của bạn bằng các biện pháp:',
     items: [
       'Mã hóa dữ liệu SSL 256-bit',
       'Lưu trữ an toàn trên máy chủ bảo mật',
@@ -122,7 +122,7 @@ const PrivacyPage = () => {
                     Nếu bạn có câu hỏi về chính sách bảo mật, vui lòng liên hệ:
                   </p>
                   <div className="bg-[#f5f6f7] rounded-lg border border-[#E5EAF0] p-6">
-                    <p className="font-bold text-[#333F48] mb-3">Minh Hải - Bộ phận Chăm sóc Khách hàng</p>
+                    <p className="font-bold text-[#333F48] mb-3">Đạt Hoàng - Bộ phận Chăm sóc Khách hàng</p>
                     <div className="space-y-2">
                       <p className="text-sm text-[#74869B] flex items-center gap-2">
                         <span className="material-symbols-outlined text-base text-[#DA291C]">mail</span>

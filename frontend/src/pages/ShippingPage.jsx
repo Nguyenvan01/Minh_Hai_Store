@@ -40,7 +40,7 @@ const ShippingPage = () => {
     },
     {
       question: 'Tôi có thể nhận hàng tại cửa hàng không?',
-      answer: 'Có, bạn có thể chọn hình thức nhận hàng tại cửa hàng Minh Hải gần bạn. Đơn hàng sẽ được giữ trong 7 ngày.'
+      answer: 'Có, bạn có thể chọn hình thức nhận hàng tại cửa hàng Đạt Hoàng gần bạn. Đơn hàng sẽ được giữ trong 7 ngày.'
     }
   ]
 

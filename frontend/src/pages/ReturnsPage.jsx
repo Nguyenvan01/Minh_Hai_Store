@@ -23,7 +23,7 @@ const ReturnsPage = () => {
     {
       title: 'Chi phí',
       icon: 'payments',
-      description: 'Minh Hải sẽ chịu chi phí vận chuyển cho việc đổi/trả hàng. Bạn chỉ cần liên hệ để được hướng dẫn gửi sản phẩm.'
+      description: 'Đạt Hoàng sẽ chịu chi phí vận chuyển cho việc đổi/trả hàng. Bạn chỉ cần liên hệ để được hướng dẫn gửi sản phẩm.'
     }
   ]
 
@@ -110,7 +110,7 @@ const ReturnsPage = () => {
             <div className="text-center">
               <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">3</div>
               <h3 className="font-bold mb-2">Xác nhận</h3>
-              <p className="text-slate-600 text-sm">Minh Hải kiểm tra sản phẩm và xác nhận yêu cầu đổi trả</p>
+              <p className="text-slate-600 text-sm">Đạt Hoàng kiểm tra sản phẩm và xác nhận yêu cầu đổi trả</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">4</div>

@@ -40,7 +40,7 @@ function FavoriteProductCard({ product, onRemove, onAddToCart, removing = false,
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-xs font-semibold tracking-[0.18em] text-[#adbccd]">
-            Minh Hải
+            Đạt Hoàng
           </div>
         )}
 

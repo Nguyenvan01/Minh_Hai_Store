@@ -8,7 +8,7 @@ const Footer = () => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-0">
           {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
-            <span className="text-2xl font-black tracking-[0.1em]">Minh Hải</span>
+            <span className="text-2xl font-black tracking-[0.1em]">Đạt Hoàng</span>
             <p className="mt-3 text-sm font-medium text-white/60 leading-relaxed">
               Thương hiệu thời trang gia đình hàng đầu Việt Nam
             </p>
@@ -39,9 +39,9 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Về Minh Hải */}
+          {/* Về Đạt Hoàng */}
           <div>
-            <h4 className="font-bold text-sm mb-3">VỀ MINH HẢI</h4>
+            <h4 className="font-bold text-sm mb-3">VỀ ĐẠT HOÀNG</h4>
             <div className="space-y-2">
               {['Giới thiệu', 'Tuyển dụng', 'Liên hệ'].map(item => (
                 <Link key={item} to="#" className="block text-sm font-medium text-white/60 hover:text-white transition-colors">{item}</Link>
@@ -62,7 +62,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="border-t border-white/10 mt-8 pt-6 text-center">
-          <p className="text-xs font-medium text-white/40">© 2026 Minh Hải. All rights reserved.</p>
+          <p className="text-xs font-medium text-white/40">© 2026 Đạt Hoàng. All rights reserved.</p>
         </div>
       </div>
     </footer>
