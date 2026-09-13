@@ -110,7 +110,7 @@ exports.login = async (req, res) => {
     }
 
     const [users] = await db.query(
-      'SELECT id, name, email, password, phone, avatar, member_level, reward_points, created_at FROM users WHERE email = ? AND role = "user"',
+      `SELECT id, name, email, password, phone, avatar, member_level, reward_points, created_at FROM users WHERE email = ? AND role = 'user'`,
       [email.toLowerCase().trim()]
     )
 
@@ -245,7 +245,7 @@ exports.changePassword = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mật khẩu mới phải có ít nhất 6 ký tự' })
     }
 
-    const [rows] = await db.query('SELECT id, password FROM users WHERE id = ? AND role = "user"', [req.user.id])
+    const [rows] = await db.query(`SELECT id, password FROM users WHERE id = ? AND role = 'user'`, [req.user.id])
     if (!rows.length) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' })
     }
@@ -389,7 +389,7 @@ exports.createOrder = async (req, res) => {
          LEFT JOIN product_variants pv ON pv.id = ? AND pv.product_id = p.id
          LEFT JOIN sizes s ON pv.size_id = s.id
          LEFT JOIN colors c ON pv.color_id = c.id
-         WHERE p.id = ? AND p.is_active = 1
+         WHERE p.id = ? AND p.is_active = TRUE
          LIMIT 1`,
         [variantId || 0, productId]
       )
@@ -537,7 +537,7 @@ exports.getOrders = async (req, res) => {
               o.shipping_method, o.created_at,
               (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count,
               (SELECT COALESCE(SUM(quantity), 0) FROM order_items WHERE order_id = o.id) as total_items,
-              (SELECT GROUP_CONCAT(oi.product_name ORDER BY oi.id SEPARATOR '|||') FROM order_items oi WHERE oi.order_id = o.id) as product_names,
+              (SELECT string_agg(oi.product_name, '|||' ORDER BY oi.id) FROM order_items oi WHERE oi.order_id = o.id) as product_names,
               (SELECT oi.product_image FROM order_items oi WHERE oi.order_id = o.id LIMIT 1) as first_image
        FROM orders o
        WHERE o.user_id = ?
@@ -687,7 +687,7 @@ exports.addToWishlist = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Thiếu productId' })
     }
 
-    const [[product]] = await db.query('SELECT id, name, price FROM products WHERE id = ? AND is_active = 1', [productId])
+    const [[product]] = await db.query('SELECT id, name, price FROM products WHERE id = ? AND is_active = TRUE', [productId])
     if (!product) {
       return res.status(404).json({ success: false, message: 'Sản phẩm không tồn tại' })
     }
@@ -770,7 +770,7 @@ exports.createAddress = async (req, res) => {
     await conn.beginTransaction()
 
     if (isDefault || count === 0) {
-      await conn.query('UPDATE addresses SET is_default = 0 WHERE user_id = ?', [userId])
+      await conn.query('UPDATE addresses SET is_default = FALSE WHERE user_id = ?', [userId])
     }
 
     const [result] = await conn.query(
@@ -808,7 +808,7 @@ exports.updateAddress = async (req, res) => {
     await conn.beginTransaction()
 
     if (isDefault) {
-      await conn.query('UPDATE addresses SET is_default = 0 WHERE user_id = ?', [userId])
+      await conn.query('UPDATE addresses SET is_default = FALSE WHERE user_id = ?', [userId])
     }
 
     const fields = []
@@ -860,7 +860,7 @@ exports.deleteAddress = async (req, res) => {
         [userId]
       )
       if (firstAddress) {
-        await conn.query('UPDATE addresses SET is_default = 1 WHERE id = ?', [firstAddress.id])
+        await conn.query('UPDATE addresses SET is_default = TRUE WHERE id = ?', [firstAddress.id])
       }
     }
 

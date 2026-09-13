@@ -677,3 +677,47 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications (is_read);
 CREATE INDEX IF NOT EXISTS idx_settings_key ON settings (setting_key);
 CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts (status);
 CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts (email);
+
+-- =====================================================
+-- COT BO SUNG
+-- Truoc day do backend/src/utils/migrations.js tao luc khoi dong server.
+-- Tren Vercel khong chay migration nen phai khai bao san o day.
+-- =====================================================
+ALTER TABLE users           ADD COLUMN IF NOT EXISTS member_level VARCHAR(20) DEFAULT 'Bronze';
+ALTER TABLE contacts        ADD COLUMN IF NOT EXISTS is_replied   BOOLEAN DEFAULT FALSE;
+ALTER TABLE settings        ADD COLUMN IF NOT EXISTS setting_type VARCHAR(20) DEFAULT 'string';
+ALTER TABLE settings        ADD COLUMN IF NOT EXISTS group_name   VARCHAR(50) DEFAULT 'general';
+ALTER TABLE product_reviews ADD COLUMN IF NOT EXISTS is_active    BOOLEAN DEFAULT TRUE;
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS recipient_name  VARCHAR(100) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS recipient_phone VARCHAR(20)  DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS ward            VARCHAR(100) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS district        VARCHAR(100) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS city            VARCHAR(100) DEFAULT '';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS note            TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code     VARCHAR(50);
+
+-- =====================================================
+-- TRIGGER updated_at
+-- MySQL co ON UPDATE CURRENT_TIMESTAMP, Postgres thi khong.
+-- =====================================================
+CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE t text;
+BEGIN
+  FOR t IN
+    SELECT table_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND column_name = 'updated_at'
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_updated ON %I', t, t);
+    EXECUTE format(
+      'CREATE TRIGGER trg_%s_updated BEFORE UPDATE ON %I '
+      'FOR EACH ROW EXECUTE FUNCTION set_updated_at()', t, t);
+  END LOOP;
+END $$;

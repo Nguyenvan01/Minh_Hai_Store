@@ -1,3 +1,9 @@
+// KHONG CON DUOC SU DUNG.
+// Toan bo DDL trong file nay la cu phap MySQL (INT AUTO_INCREMENT, ENGINE=InnoDB,
+// bat ma loi ER_DUP_FIELDNAME...) nen khong chay duoc tren PostgreSQL.
+// Cac bang va cot truoc day file nay tao nay da nam trong database/schema.pg.sql.
+// Giu lai de tham chieu lich su; khong require file nay o bat ky dau.
+
 const db = require('../config/database')
 
 async function addColumnIfNotExists(table, column, definition) {

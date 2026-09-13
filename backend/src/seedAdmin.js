@@ -36,7 +36,7 @@ async function seed() {
 
     // Update password to bcrypt hash
     await connection.query(
-      'UPDATE users SET password = ?, name = ?, role = "admin" WHERE email = ?',
+      `UPDATE users SET password = ?, name = ?, role = 'admin' WHERE email = ?`,
       [passwordHash, name, email]
     )
     console.log('Updated password and role for existing admin account.')

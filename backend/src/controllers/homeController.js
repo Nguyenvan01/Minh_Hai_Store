@@ -49,7 +49,7 @@ module.exports = {
           min_order_amount,
           valid_until,
           CASE
-            WHEN DATEDIFF(valid_until, NOW()) <= 3 THEN TRUE
+            WHEN (valid_until::date - CURRENT_DATE) <= 3 THEN TRUE
             ELSE FALSE
           END as is_expiring_soon
         FROM vouchers

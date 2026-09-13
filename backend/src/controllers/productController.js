@@ -188,8 +188,8 @@ module.exports = {
       if (search && search.trim()) {
         const keyword = `%${search.trim()}%`;
         whereClause += ` AND (
-          p.name LIKE ? OR p.sku LIKE ? OR p.short_description LIKE ? OR
-          p.description LIKE ? OR c.name LIKE ? OR b.name LIKE ?
+          p.name ILIKE ? OR p.sku ILIKE ? OR p.short_description ILIKE ? OR
+          p.description ILIKE ? OR c.name ILIKE ? OR b.name ILIKE ?
         )`;
         params.push(keyword, keyword, keyword, keyword, keyword, keyword);
       }
@@ -249,7 +249,7 @@ module.exports = {
           WHERE pv_color.product_id = p.id
             AND pv_color.is_active = TRUE
             AND (
-              CAST(c_filter.id AS CHAR) IN (?) OR
+              CAST(c_filter.id AS TEXT) IN (?) OR
               c_filter.code IN (?) OR
               c_filter.name IN (?) OR
               LOWER(REPLACE(c_filter.name, ' ', '-')) IN (?)
@@ -440,7 +440,7 @@ module.exports = {
           WHERE pv_color.product_id = p.id
             AND pv_color.is_active = TRUE
             AND (
-              CAST(c_filter.id AS CHAR) IN (?) OR
+              CAST(c_filter.id AS TEXT) IN (?) OR
               c_filter.code IN (?) OR
               c_filter.name IN (?) OR
               LOWER(REPLACE(c_filter.name, ' ', '-')) IN (?)
@@ -557,7 +557,7 @@ module.exports = {
         LEFT JOIN categories c ON p.category_id = c.id
         LEFT JOIN brands b ON p.brand_id = b.id
         WHERE p.is_active = TRUE
-          AND (p.name LIKE ? OR p.short_description LIKE ? OR p.description LIKE ? OR b.name LIKE ?)
+          AND (p.name ILIKE ? OR p.short_description ILIKE ? OR p.description ILIKE ? OR b.name ILIKE ?)
         ORDER BY p.is_featured DESC, p.view_count DESC
         LIMIT 20
       `, [searchTerm, searchTerm, searchTerm, searchTerm]);

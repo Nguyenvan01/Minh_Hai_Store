@@ -40,12 +40,12 @@ router.get('/notifications', require('../controllers/adminController').getNotifi
 router.get('/products', require('../controllers/adminController').getProducts)
 router.get('/sizes', async (req, res) => {
   const db = require('../config/database')
-  const [rows] = await db.query('SELECT * FROM sizes WHERE is_active = 1 ORDER BY sort_order ASC')
+  const [rows] = await db.query('SELECT * FROM sizes WHERE is_active = TRUE ORDER BY sort_order ASC')
   res.json({ sizes: rows })
 })
 router.get('/colors', async (req, res) => {
   const db = require('../config/database')
-  const [rows] = await db.query('SELECT * FROM colors WHERE is_active = 1 ORDER BY sort_order ASC')
+  const [rows] = await db.query('SELECT * FROM colors WHERE is_active = TRUE ORDER BY sort_order ASC')
   res.json({ colors: rows })
 })
 router.get('/products/options', require('../controllers/adminController').getProductOptions)

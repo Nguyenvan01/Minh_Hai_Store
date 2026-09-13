@@ -21,7 +21,7 @@ router.post('/login', async (req, res) => {
 
     // Find admin user
     const [users] = await db.query(
-      'SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ("admin", "manager", "staff", "warehouse")',
+      `SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ('admin', 'manager', 'staff', 'warehouse')`,
       [email]
     )
 

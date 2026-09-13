@@ -45,7 +45,7 @@ exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body
     if (!email || !password) return res.status(400).json({ success: false, message: 'Vui lòng nhập email và mật khẩu' })
-    const [users] = await db.query('SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ("admin", "manager", "staff", "warehouse")', [email])
+    const [users] = await db.query(`SELECT id, email, password, name, role FROM users WHERE email = ? AND role IN ('admin', 'manager', 'staff', 'warehouse')`, [email])
     if (!users.length) return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' })
     const user = users[0]
     const plainValid = password === 'admin123' || password === 'manager123' || password === 'staff123'
@@ -81,7 +81,7 @@ exports.adminProfile = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ? AND role IN ("admin","manager","staff","warehouse")', [req.user.id])
+    const [rows] = await db.query(`SELECT id, email, name, phone, role, avatar, created_at FROM users WHERE id = ? AND role IN ('admin','manager','staff','warehouse')`, [req.user.id])
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy tài khoản' })
     res.json({ success: true, user: rows[0] })
   } catch (err) {
@@ -114,10 +114,10 @@ exports.logout = async (req, res) => {
 exports.getDashboard = async (req, res) => {
   try {
     const [[orders]] = await db.query("SELECT COUNT(*) as total, COALESCE(SUM(CASE WHEN status = 'delivered' THEN total_price ELSE 0 END), 0) as revenue FROM orders")
-    const [[products]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = 1')
-    const [[customers]] = await db.query('SELECT COUNT(*) as total FROM users WHERE role = "user"')
+    const [[products]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = TRUE')
+    const [[customers]] = await db.query(`SELECT COUNT(*) as total FROM users WHERE role = 'user'`)
     const [[pendingOrders]] = await db.query("SELECT COUNT(*) as total FROM orders WHERE status = 'pending'")
-    const [[lowStockProducts]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = 1 AND stock > 0 AND stock <= 5')
+    const [[lowStockProducts]] = await db.query('SELECT COUNT(*) as total FROM products WHERE is_active = TRUE AND stock > 0 AND stock <= 5')
 
     const statusBreakdown = await db.query(
       "SELECT status, COUNT(*) as count FROM orders GROUP BY status"
@@ -140,7 +140,7 @@ exports.getDashboard = async (req, res) => {
       'SELECT name, total_sold FROM products ORDER BY total_sold DESC LIMIT 5'
     )
     const [chartData] = await db.query(
-      "SELECT DATE_FORMAT(created_at, '%m/%Y') as name, SUM(CASE WHEN status = 'delivered' THEN total_price ELSE 0 END) as revenue, SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as orders FROM orders WHERE created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%m/%Y') ORDER BY MIN(created_at)"
+      "SELECT to_char(created_at, 'MM/YYYY') as name, SUM(CASE WHEN status = 'delivered' THEN total_price ELSE 0 END) as revenue, SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) as orders FROM orders WHERE created_at >= (now() - INTERVAL '6 MONTH') GROUP BY to_char(created_at, 'MM/YYYY') ORDER BY MIN(created_at)"
     )
 
     res.json({
@@ -203,7 +203,7 @@ exports.getNotifications = async (req, res) => {
     const newOrders = await safeQuery(`
       SELECT id, order_number, total_price, customer_name, created_at
       FROM orders
-      WHERE status = 'pending' AND created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      WHERE status = 'pending' AND created_at >= (now() - INTERVAL '24 HOUR')
       ORDER BY created_at DESC LIMIT 5
     `)
     for (const o of newOrders) {
@@ -217,9 +217,9 @@ exports.getNotifications = async (req, res) => {
 
     // 2. Đơn hàng chờ xử lý (pending > 12h)
     const pendingOld = await safeQuery(`
-      SELECT id, order_number, customer_name, created_at, TIMESTAMPDIFF(HOUR, created_at, NOW()) as hours_waiting
+      SELECT id, order_number, customer_name, created_at, FLOOR(EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600) as hours_waiting
       FROM orders
-      WHERE status = 'pending' AND created_at < DATE_SUB(NOW(), INTERVAL 12 HOUR)
+      WHERE status = 'pending' AND created_at < (now() - INTERVAL '12 HOUR')
       ORDER BY created_at ASC LIMIT 5
     `)
     for (const o of pendingOld) {
@@ -236,7 +236,7 @@ exports.getNotifications = async (req, res) => {
     const deliveredToday = await safeQuery(`
       SELECT id, order_number, customer_name, total_price, created_at
       FROM orders
-      WHERE status = 'delivered' AND DATE(delivered_at) = CURDATE()
+      WHERE status = 'delivered' AND delivered_at::date = CURRENT_DATE
       ORDER BY delivered_at DESC LIMIT 5
     `)
     for (const o of deliveredToday) {
@@ -252,7 +252,7 @@ exports.getNotifications = async (req, res) => {
     const cancelled = await safeQuery(`
       SELECT id, order_number, customer_name, cancel_reason, created_at
       FROM orders
-      WHERE status = 'cancelled' AND cancelled_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      WHERE status = 'cancelled' AND cancelled_at >= (now() - INTERVAL '24 HOUR')
       ORDER BY cancelled_at DESC LIMIT 3
     `)
     for (const o of cancelled) {
@@ -267,7 +267,7 @@ exports.getNotifications = async (req, res) => {
     // 5. Sản phẩm sắp hết hàng
     const lowStock = await safeQuery(`
       SELECT id, name, stock FROM products
-      WHERE is_active = 1 AND stock > 0 AND stock <= 5
+      WHERE is_active = TRUE AND stock > 0 AND stock <= 5
       ORDER BY stock ASC LIMIT 5
     `)
     for (const p of lowStock) {
@@ -281,7 +281,7 @@ exports.getNotifications = async (req, res) => {
 
     // 6. Sản phẩm hết hàng
     const outStock = await safeQuery(`
-      SELECT id, name, stock FROM products WHERE is_active = 1 AND stock = 0 ORDER BY updated_at DESC LIMIT 5
+      SELECT id, name, stock FROM products WHERE is_active = TRUE AND stock = 0 ORDER BY updated_at DESC LIMIT 5
     `)
     for (const p of outStock) {
       notifications.push({
@@ -312,7 +312,7 @@ exports.getNotifications = async (req, res) => {
     const returns = await safeQuery(`
       SELECT id, order_number, customer_name, created_at
       FROM orders
-      WHERE status = 'returned' AND created_at >= DATE_SUB(NOW(), INTERVAL 48 HOUR)
+      WHERE status = 'returned' AND created_at >= (now() - INTERVAL '48 HOUR')
       ORDER BY created_at DESC LIMIT 3
     `)
     for (const o of returns) {
@@ -330,7 +330,7 @@ exports.getNotifications = async (req, res) => {
       FROM product_reviews pr
       JOIN products p ON pr.product_id = p.id
       LEFT JOIN users u ON pr.user_id = u.id
-      WHERE pr.is_approved = 0
+      WHERE pr.is_approved = FALSE
       ORDER BY pr.created_at DESC LIMIT 3
     `)
     for (const r of pendingReviews) {
@@ -389,7 +389,7 @@ exports.getProducts = async (req, res) => {
     const offset = (page - 1) * limit
     let where = '1=1'
     let params = []
-    if (search) { where += ' AND (p.name LIKE ? OR p.sku LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (p.name ILIKE ? OR p.sku ILIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
     if (category) { where += ' AND p.category_id = ?'; params.push(category) }
     if (brand) { where += ' AND p.brand_id = ?'; params.push(brand) }
 
@@ -401,7 +401,7 @@ exports.getProducts = async (req, res) => {
          FROM products p
          LEFT JOIN categories c ON p.category_id = c.id
          LEFT JOIN brands b ON p.brand_id = b.id
-         WHERE p.is_active = 1
+         WHERE p.is_active = TRUE
          ORDER BY p.name ASC`
       )
       return res.json({ products: rows })
@@ -430,7 +430,7 @@ exports.getProductById = async (req, res) => {
   try {
     const [rows] = await db.query(
       `SELECT p.*, c.name as category_name, b.name as brand_name,
-       (SELECT GROUP_CONCAT(url) FROM product_images WHERE product_id = p.id) as images
+       (SELECT string_agg(url::text, ',') FROM product_images WHERE product_id = p.id) as images
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
        LEFT JOIN brands b ON p.brand_id = b.id
@@ -774,13 +774,13 @@ exports.getOrders = async (req, res) => {
       const isNumeric = /^\d+$/.test(rawSearch)
       const conditions = [
         'o.order_number = ?',
-        'LOWER(o.order_number) LIKE ?',
-        'LOWER(o.customer_email) LIKE ?',
-        'LOWER(o.customer_name) LIKE ?',
-        'LOWER(u.name) LIKE ?',
-        'LOWER(u.email) LIKE ?',
-        'o.customer_phone LIKE ?',
-        'u.phone LIKE ?',
+        'LOWER(o.order_number) ILIKE ?',
+        'LOWER(o.customer_email) ILIKE ?',
+        'LOWER(o.customer_name) ILIKE ?',
+        'LOWER(u.name) ILIKE ?',
+        'LOWER(u.email) ILIKE ?',
+        'o.customer_phone ILIKE ?',
+        'u.phone ILIKE ?',
       ]
       const paramsArr = [
         rawSearch, r, s, s, s, s, phoneRaw, r,
@@ -793,11 +793,11 @@ exports.getOrders = async (req, res) => {
       params.push(...paramsArr)
     }
     if (date_from) {
-      where += ' AND DATE(o.created_at) >= ?'
+      where += ' AND o.created_at::date >= ?'
       params.push(date_from)
     }
     if (date_to) {
-      where += ' AND DATE(o.created_at) <= ?'
+      where += ' AND o.created_at::date <= ?'
       params.push(date_to)
     }
 
@@ -1073,9 +1073,9 @@ exports.getCustomers = async (req, res) => {
     const { page = 1, search } = req.query
     const limit = 20
     const offset = (page - 1) * limit
-    let where = 'role = "user"'
+    let where = "role = 'user'"
     let params = []
-    if (search) { where += ' AND (name LIKE ? OR email LIKE ? OR phone LIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (name ILIKE ? OR email ILIKE ? OR phone ILIKE ?)'; params.push(`%${search}%`, `%${search}%`, `%${search}%`) }
 
     const [rows] = await db.query(
       `SELECT u.id, u.name, u.email, u.phone, u.role, u.is_active, u.reward_points, u.created_at,
@@ -1224,7 +1224,7 @@ exports.updateCustomer = async (req, res) => {
 
 exports.deleteCustomer = async (req, res) => {
   try {
-    const [[customer]] = await db.query('SELECT id FROM users WHERE id = ? AND role = "user"', [req.params.id])
+    const [[customer]] = await db.query(`SELECT id FROM users WHERE id = ? AND role = 'user'`, [req.params.id])
     if (!customer) return res.status(404).json({ success: false, message: 'Không tìm thấy khách hàng.' })
 
     const [[orderCount]] = await db.query(
@@ -1242,7 +1242,7 @@ exports.deleteCustomer = async (req, res) => {
     }
 
     await db.query('DELETE FROM addresses WHERE user_id = ?', [req.params.id])
-    await db.query('DELETE FROM users WHERE id = ? AND role = "user"', [req.params.id])
+    await db.query(`DELETE FROM users WHERE id = ? AND role = 'user'`, [req.params.id])
     res.json({ success: true, message: 'Đã xóa khách hàng.' })
   } catch (err) {
     console.error('deleteCustomer error:', err)
@@ -1256,9 +1256,9 @@ exports.getEmployees = async (req, res) => {
     const { page = 1, search } = req.query
     const limit = 20
     const offset = (page - 1) * limit
-    let where = 'role IN ("admin", "manager", "staff", "warehouse")'
+    let where = "role IN ('admin', 'manager', 'staff', 'warehouse')"
     let params = []
-    if (search) { where += ' AND (name LIKE ? OR email LIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
+    if (search) { where += ' AND (name ILIKE ? OR email ILIKE ?)'; params.push(`%${search}%`, `%${search}%`) }
 
     const [rows] = await db.query(
       `SELECT id, name, email, phone, role, is_active, created_at
@@ -1356,7 +1356,7 @@ exports.deleteEmployee = async (req, res) => {
 
 exports.toggleEmployee = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT is_active FROM users WHERE id = ? AND role IN ("admin","manager","staff","warehouse")', [req.params.id])
+    const [rows] = await db.query(`SELECT is_active FROM users WHERE id = ? AND role IN ('admin','manager','staff','warehouse')`, [req.params.id])
     if (!rows.length) return res.status(404).json({ success: false, message: 'Không tìm thấy' })
     await db.query('UPDATE users SET is_active = ? WHERE id = ?', [!rows[0].is_active, req.params.id])
     res.json({ success: true })
@@ -1368,8 +1368,8 @@ exports.toggleEmployee = async (req, res) => {
 const PROMOTION_SELECT = `
   SELECT id, title, title as name, slug, description, image_url,
          discount_type, discount_value,
-         DATE_FORMAT(start_date, '%Y-%m-%d') as start_date,
-         DATE_FORMAT(end_date, '%Y-%m-%d') as end_date,
+         to_char(start_date, 'YYYY-MM-DD') as start_date,
+         to_char(end_date, 'YYYY-MM-DD') as end_date,
          is_active, is_featured, created_at, updated_at
   FROM promotions
 `
@@ -1707,8 +1707,8 @@ exports.getReviews = async (req, res) => {
     const limit = 20
     const offset = (page - 1) * limit
     let where = '1=1'
-    if (filter === 'pending') where = 'pr.is_approved = 0'
-    else if (filter === 'approved') where = 'pr.is_approved = 1'
+    if (filter === 'pending') where = 'pr.is_approved = FALSE'
+    else if (filter === 'approved') where = 'pr.is_approved = TRUE'
 
     const [rows] = await db.query(
       `SELECT pr.id, pr.rating, pr.content, pr.is_approved, pr.is_active, pr.admin_reply, pr.replied_at,
@@ -1735,7 +1735,7 @@ exports.getReviews = async (req, res) => {
 
 exports.approveReview = async (req, res) => {
   try {
-    await db.query('UPDATE product_reviews SET is_approved = 1 WHERE id = ?', [req.params.id])
+    await db.query('UPDATE product_reviews SET is_approved = TRUE WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ success: false, message: 'Có lỗi xảy ra, vui lòng thử lại sau.' })
@@ -1843,10 +1843,10 @@ exports.getReports = async (req, res) => {
   try {
     const { period = '30days', date_from, date_to } = req.query
 
-    let dateFilter = "DATE_SUB(NOW(), INTERVAL 30 DAY)"
-    if (period === '7days') dateFilter = "DATE_SUB(NOW(), INTERVAL 7 DAY)"
-    else if (period === '90days') dateFilter = "DATE_SUB(NOW(), INTERVAL 90 DAY)"
-    else if (period === '365days') dateFilter = "DATE_SUB(NOW(), INTERVAL 365 DAY)"
+    let dateFilter = "(now() - INTERVAL '30 DAY')"
+    if (period === '7days') dateFilter = "(now() - INTERVAL '7 DAY')"
+    else if (period === '90days') dateFilter = "(now() - INTERVAL '90 DAY')"
+    else if (period === '365days') dateFilter = "(now() - INTERVAL '365 DAY')"
     else if (period === 'all') dateFilter = "'1970-01-01'"
 
     const orderWhere = period === 'custom' && date_from && date_to
@@ -1906,26 +1906,26 @@ exports.getReports = async (req, res) => {
     // Daily revenue
     const [dailyRevenue] = await db.query(`
       SELECT
-        DATE(o.created_at) as date,
+        o.created_at::date as date,
         SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END) as revenue,
         SUM(CASE WHEN o.status = 'delivered' THEN o.subtotal ELSE 0 END) as net_revenue,
         COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as orders,
         SUM(CASE WHEN o.status = 'delivered' THEN 1 ELSE 0 END) as delivered_orders
       FROM orders o
       WHERE ${orderWhere}
-      GROUP BY DATE(o.created_at)
+      GROUP BY o.created_at::date
       ORDER BY date ASC
     `)
 
     // Revenue by month
     const [monthlyRevenue] = await db.query(`
       SELECT
-        DATE_FORMAT(o.created_at, '%m/%Y') as name,
+        to_char(o.created_at, 'MM/YYYY') as name,
         SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END) as revenue,
         COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as orders
       FROM orders o
       WHERE ${orderWhere}
-      GROUP BY DATE_FORMAT(o.created_at, '%m/%Y')
+      GROUP BY to_char(o.created_at, 'MM/YYYY')
       ORDER BY MIN(o.created_at)
     `)
 
@@ -2095,7 +2095,8 @@ exports.updateSettings = async (req, res) => {
   try {
     for (const [key, value] of Object.entries(req.body)) {
       await db.query(
-        'INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)',
+        `INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)
+         ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value`,
         [key, value]
       )
     }
@@ -2115,8 +2116,8 @@ const importOrderSelect = `
   SELECT io.id, io.code, io.code as order_code, io.supplier_id, io.warehouse_id,
          s.name as supplier_name, s.phone as supplier_phone, s.email as supplier_email, s.address as supplier_address,
          w.name as warehouse_name,
-         DATE_FORMAT(io.order_date, '%Y-%m-%d') as order_date,
-         DATE_FORMAT(io.expected_date, '%Y-%m-%d') as expected_date,
+         to_char(io.order_date, 'YYYY-MM-DD') as order_date,
+         to_char(io.expected_date, 'YYYY-MM-DD') as expected_date,
          io.total_quantity, io.subtotal, io.discount_amount, io.shipping_fee, io.total_amount,
          io.paid_amount, io.payment_status, io.payment_method, io.status, io.note,
          io.created_by, io.received_at, io.cancelled_at, io.created_at, io.updated_at
@@ -2272,7 +2273,7 @@ exports.getProductOptions = async (req, res) => {
               (SELECT url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order ASC LIMIT 1) as image
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
-       WHERE p.deleted_at IS NULL AND p.is_active = 1
+       WHERE p.deleted_at IS NULL AND p.is_active = TRUE
        ORDER BY p.name ASC`
     )
     const [variants] = await db.query(
@@ -2280,7 +2281,7 @@ exports.getProductOptions = async (req, res) => {
        FROM product_variants pv
        LEFT JOIN sizes s ON pv.size_id = s.id
        LEFT JOIN colors c ON pv.color_id = c.id
-       WHERE pv.is_active = 1
+       WHERE pv.is_active = TRUE
        ORDER BY pv.product_id ASC, s.sort_order ASC, c.sort_order ASC`
     )
 
@@ -2314,7 +2315,7 @@ exports.getProductOptions = async (req, res) => {
 exports.getSuppliers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, code, name, phone, email, address, contact_person, is_active, created_at FROM suppliers WHERE is_active = 1 ORDER BY name ASC'
+      'SELECT id, code, name, phone, email, address, contact_person, is_active, created_at FROM suppliers WHERE is_active = TRUE ORDER BY name ASC'
     )
     res.json({ success: true, suppliers: rows })
   } catch (err) {
@@ -2365,7 +2366,7 @@ exports.updateSupplier = async (req, res) => {
 
 exports.deleteSupplier = async (req, res) => {
   try {
-    await db.query('UPDATE suppliers SET is_active = 0 WHERE id = ?', [req.params.id])
+    await db.query('UPDATE suppliers SET is_active = FALSE WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
     console.error('deleteSupplier error:', err)
@@ -2376,7 +2377,7 @@ exports.deleteSupplier = async (req, res) => {
 exports.getWarehouses = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, code, name, address, is_main, is_active, created_at FROM warehouses WHERE is_active = 1 ORDER BY is_main DESC, name ASC'
+      'SELECT id, code, name, address, is_main, is_active, created_at FROM warehouses WHERE is_active = TRUE ORDER BY is_main DESC, name ASC'
     )
     res.json({ success: true, warehouses: rows })
   } catch (err) {
@@ -2426,7 +2427,7 @@ exports.updateWarehouse = async (req, res) => {
 
 exports.deleteWarehouse = async (req, res) => {
   try {
-    await db.query('UPDATE warehouses SET is_active = 0 WHERE id = ?', [req.params.id])
+    await db.query('UPDATE warehouses SET is_active = FALSE WHERE id = ?', [req.params.id])
     res.json({ success: true })
   } catch (err) {
     console.error('deleteWarehouse error:', err)
@@ -2450,7 +2451,7 @@ exports.getImports = async (req, res) => {
     }
     if (search && String(search).trim()) {
       const q = `%${String(search).trim().toLowerCase()}%`
-      where.push('(LOWER(io.code) LIKE ? OR LOWER(s.name) LIKE ?)')
+      where.push('(LOWER(io.code) ILIKE ? OR LOWER(s.name) ILIKE ?)')
       params.push(q, q)
     }
 
@@ -2683,7 +2684,7 @@ exports.deleteImport = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Đơn đã nhận hàng, không thể hủy.' })
     }
 
-    await db.query('UPDATE import_orders SET status = "cancelled", cancelled_at = NOW() WHERE id = ?', [req.params.id])
+    await db.query(`UPDATE import_orders SET status = 'cancelled', cancelled_at = NOW() WHERE id = ?`, [req.params.id])
     res.json({ success: true })
   } catch (err) {
     console.error('deleteImport error:', err)
@@ -2842,7 +2843,7 @@ exports.getBlogs = async (req, res) => {
     const params = []
     let where = 'deleted_at IS NULL'
     if (search.trim()) {
-      where += ' AND (title LIKE ? OR slug LIKE ? OR summary LIKE ?)'
+      where += ' AND (title ILIKE ? OR slug ILIKE ? OR summary ILIKE ?)'
       const like = `%${search.trim()}%`
       params.push(like, like, like)
     }
@@ -2965,8 +2966,8 @@ const reviewSelect = `
   SELECT pr.id, pr.product_id, pr.user_id, pr.order_id, pr.rating, pr.title, pr.content,
          pr.images, pr.is_verified_purchase, pr.is_approved, pr.is_active,
          CASE
-           WHEN COALESCE(pr.is_active, 1) = 0 THEN 'hidden'
-           WHEN COALESCE(pr.is_approved, 0) = 1 THEN 'approved'
+           WHEN COALESCE(pr.is_active, TRUE) = FALSE THEN 'hidden'
+           WHEN COALESCE(pr.is_approved, FALSE) = TRUE THEN 'approved'
            ELSE 'pending'
          END as status,
          pr.admin_reply, pr.replied_at, pr.helpful_count, pr.created_at, pr.updated_at,
@@ -2990,15 +2991,15 @@ const buildReviewWhere = (query = {}) => {
   const params = []
   const clauses = ['1=1']
   const status = query.status || query.filter
-  if (status === 'pending') clauses.push('COALESCE(pr.is_approved, 0) = 0 AND COALESCE(pr.is_active, 1) = 1')
-  if (status === 'approved') clauses.push('COALESCE(pr.is_approved, 0) = 1 AND COALESCE(pr.is_active, 1) = 1')
-  if (status === 'hidden') clauses.push('COALESCE(pr.is_active, 1) = 0')
+  if (status === 'pending') clauses.push('COALESCE(pr.is_approved, FALSE) = FALSE AND COALESCE(pr.is_active, TRUE) = TRUE')
+  if (status === 'approved') clauses.push('COALESCE(pr.is_approved, FALSE) = TRUE AND COALESCE(pr.is_active, TRUE) = TRUE')
+  if (status === 'hidden') clauses.push('COALESCE(pr.is_active, TRUE) = FALSE')
   if (query.rating && query.rating !== 'all') {
     clauses.push('pr.rating = ?')
     params.push(Number(query.rating))
   }
   if (query.search && query.search.trim()) {
-    clauses.push('(u.name LIKE ? OR p.name LIKE ? OR pr.content LIKE ?)')
+    clauses.push('(u.name ILIKE ? OR p.name ILIKE ? OR pr.content ILIKE ?)')
     const like = `%${query.search.trim()}%`
     params.push(like, like, like)
   }
@@ -3084,7 +3085,7 @@ exports.deleteReview = async (req, res) => {
 const contactSelect = `
   SELECT c.id, c.name, c.email, c.phone, c.subject, c.message,
          c.status as raw_status,
-         CASE WHEN c.status IN ('replied', 'closed') OR COALESCE(c.is_replied, 0) = 1 THEN 'processed' ELSE 'pending' END as status,
+         CASE WHEN c.status IN ('replied', 'closed') OR COALESCE(c.is_replied, FALSE) = TRUE THEN 'processed' ELSE 'pending' END as status,
          c.admin_reply, c.replied_at, c.created_at, c.updated_at
   FROM contacts c
 `
@@ -3093,10 +3094,10 @@ const buildContactWhere = (query = {}) => {
   const params = []
   const clauses = ['1=1']
   const status = query.status || query.filter
-  if (status === 'pending') clauses.push("c.status = 'new' AND COALESCE(c.is_replied, 0) = 0")
-  if (status === 'processed') clauses.push("(c.status IN ('replied', 'closed') OR COALESCE(c.is_replied, 0) = 1)")
+  if (status === 'pending') clauses.push("c.status = 'new' AND COALESCE(c.is_replied, FALSE) = FALSE")
+  if (status === 'processed') clauses.push("(c.status IN ('replied', 'closed') OR COALESCE(c.is_replied, FALSE) = TRUE)")
   if (query.search && query.search.trim()) {
-    clauses.push('(c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR c.subject LIKE ? OR c.message LIKE ?)')
+    clauses.push('(c.name ILIKE ? OR c.email ILIKE ? OR c.phone ILIKE ? OR c.subject ILIKE ? OR c.message ILIKE ?)')
     const like = `%${query.search.trim()}%`
     params.push(like, like, like, like, like)
   }
@@ -3213,12 +3214,12 @@ const fetchReportsRevenueData = async (query = {}) => {
   const [[todayStats]] = await db.query(`SELECT COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as revenue FROM orders o WHERE ${todayWhere.clause}`, todayWhere.params)
   const [[monthStats]] = await db.query(`SELECT COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as revenue FROM orders o WHERE ${monthWhere.clause}`, monthWhere.params)
   const [dailyRevenue] = await db.query(`
-    SELECT DATE(o.created_at) as date,
+    SELECT o.created_at::date as date,
            COALESCE(SUM(CASE WHEN o.status = 'delivered' THEN o.total_price ELSE 0 END), 0) as revenue,
            COUNT(CASE WHEN o.status = 'delivered' THEN 1 END) as orders
     FROM orders o
     WHERE ${current.clause}
-    GROUP BY DATE(o.created_at)
+    GROUP BY o.created_at::date
     ORDER BY date ASC
   `, current.params)
 
@@ -3480,9 +3481,9 @@ exports.updateSettings = async (req, res) => {
       await db.query(
         `INSERT INTO settings (setting_key, setting_value, setting_type, group_name)
          VALUES (?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value),
-           setting_type = VALUES(setting_type),
-           group_name = VALUES(group_name)`,
+         ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value,
+           setting_type = EXCLUDED.setting_type,
+           group_name = EXCLUDED.group_name`,
         [key, settingValueForStorage(value), settingTypeByValue(value), settingGroupByKey(key)]
       )
     }
